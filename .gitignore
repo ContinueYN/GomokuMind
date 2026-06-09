@@ -18,6 +18,8 @@ venv/
 node_modules/
 frontend/dist/
 frontend/.vite/
+*.tsbuildinfo
+.eslintcache
 
 # IDE
 .vscode/
@@ -33,3 +35,13 @@ Thumbs.db
 # 训练产物
 strategies/q-learning/q_table.pkl
 strategies/ppo/ppo_model.pth
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage
+coverage/
+.nyc_output
