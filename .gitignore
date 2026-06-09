@@ -1,0 +1,35 @@
+# Go
+go.sum
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.pkl
+*.pth
+venv/
+.env/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 训练产物
+strategies/q-learning/q_table.pkl
+strategies/ppo/ppo_model.pth

@@ -1,0 +1,15 @@
+.board-wrapper {
+  display: inline-block;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.board-canvas {
+  cursor: pointer;
+  display: block;
+}
+
+.board-canvas:disabled {
+  cursor: not-allowed;
+}
