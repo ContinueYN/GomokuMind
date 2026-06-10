@@ -1,18 +1,35 @@
+/* ==========================================
+   GameControl — 二次元风格 游戏创建面板
+   ========================================== */
+
 .game-control {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
   padding: 2rem;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   max-width: 600px;
   margin: 0 auto;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+  animation: card-appear 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes card-appear {
+  0% { opacity: 0; transform: translateY(16px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .game-control h2 {
   margin: 0 0 1.5rem;
   text-align: center;
-  color: #e2b04a;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: 0.06em;
 }
 
+/* ---------- 模式按钮 ---------- */
 .mode-selector {
   display: flex;
   gap: 0.5rem;
@@ -23,42 +40,50 @@
 
 .mode-btn {
   padding: 0.6rem 1.2rem;
-  border: 2px solid #334;
-  border-radius: 8px;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: #8899aa;
+  color: var(--text-muted);
+  font-family: var(--font-main);
   font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition);
+  letter-spacing: 0.04em;
 }
 
 .mode-btn.active {
-  border-color: #e2b04a;
-  color: #e2b04a;
-  background: rgba(226, 176, 74, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glass);
+  box-shadow: 0 0 12px var(--glow);
 }
 
 .mode-btn:hover:not(.active) {
-  border-color: #556;
-  color: #ccc;
+  border-color: var(--card-border);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
 }
 
+/* ---------- PvE 配置区 ---------- */
 .pve-config {
   margin-bottom: 1.5rem;
 }
 
 .config-hint {
   text-align: center;
-  color: #ccc;
+  color: var(--text);
   margin: 0 0 0.75rem;
   font-size: 1rem;
+  font-weight: 500;
 }
 
 .config-note {
   text-align: center;
-  color: #667;
+  color: var(--text-muted);
   margin: 0.75rem 0 0;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  opacity: 0.8;
 }
 
 .ai-select-group {
@@ -75,21 +100,43 @@
 }
 
 .ai-select label {
-  font-weight: 500;
-  color: #ccc;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
 }
 
 .ai-select select {
-  padding: 0.75rem;
-  border-radius: 8px;
-  border: 1px solid #334;
-  background: #1a1a2e;
-  color: #e0e0e0;
-  font-size: 0.9rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-subtle);
+  background: var(--card-bg);
+  color: var(--text);
+  font-family: var(--font-main);
+  font-size: 0.92rem;
   cursor: pointer;
   outline: none;
+  transition: border-color var(--transition);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.2rem;
 }
 
 .ai-select select:focus {
-  border-color: #e2b04a;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 480px) {
+  .game-control {
+    padding: 1.25rem;
+  }
+  .mode-btn {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.85rem;
+  }
 }

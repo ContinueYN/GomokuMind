@@ -1,15 +1,29 @@
 .board-wrapper {
   display: inline-block;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 3px var(--card-border),
+    0 12px 40px rgba(0, 0, 0, 0.12);
   overflow: hidden;
+  transition: box-shadow 0.5s ease;
+}
+
+.board-wrapper:hover {
+  box-shadow:
+    0 0 0 3px var(--card-border),
+    0 16px 48px rgba(0, 0, 0, 0.16);
 }
 
 .board-canvas {
   cursor: pointer;
   display: block;
+  transition: filter 0.3s ease;
 }
 
-.board-canvas:disabled {
+.board-canvas:hover:not([style*="cursor: not-allowed"]) {
+  filter: brightness(1.02);
+}
+
+.board-canvas[style*="cursor: not-allowed"] {
   cursor: not-allowed;
 }

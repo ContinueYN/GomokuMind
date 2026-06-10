@@ -1,12 +1,22 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import Board from './components/Board';
 import GameControl from './components/GameControl';
+import ThemeSwitcher from './components/ThemeSwitcher';
 import { gameApi } from './services/api';
 import { Game, GameConfig, GameMode, PlayerKind, AIType } from './types';
+import { ThemeKey, DEFAULT_THEME, THEMES, BOARD_THEMES } from './themes';
 import './App.css';
 
 const AI_MOVE_DELAY = 1500; // AI vs AI 模式下的落子间隔 (ms)
 const AI_RESPONSE_DELAY = 400;  // PvE 模式下 AI 响应间隔 (ms)
+
+/* 各主题对应的装饰粒子 */
+const PARTICLE_MAP: Record<ThemeKey, string> = {
+  spring: '🌸',
+  autumn: '🍂',
+  winter: '❄️',
+  starry: '✨',
+};
 
 const App: React.FC = () => {
   const [game, setGame] = useState<Game | null>(null);
@@ -15,6 +25,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [aiThinking, setAiThinking] = useState(false);
   const [autoPlay, setAutoPlay] = useState(false); // 托管/自动对弈开关
+  const [theme, setTheme] = useState<ThemeKey>(DEFAULT_THEME);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 创建游戏
@@ -127,12 +138,22 @@ const App: React.FC = () => {
     };
   }, [game, game?.current_player, game?.status, config, autoPlay, isCurrentPlayerAI, triggerAIMove]);
 
+  // 同步主题到 html 标签
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
   // 清理 timer
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
+
+  // 当前主题信息
+  const themeInfo = useMemo(() => THEMES.find(t => t.key === theme)!, [theme]);
+
+  const boardColors = useMemo(() => BOARD_THEMES[theme], [theme]);
 
   // 一键 AI 代下（单步）
   const handleSingleAI = useCallback(async () => {
@@ -169,9 +190,17 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
+      {/* 装饰粒子层 */}
+      <div className={`particles-layer ${themeInfo.particles}`}>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <span key={i} className="particle">{PARTICLE_MAP[theme]}</span>
+        ))}
+      </div>
+
       <header className="app-header">
-        <h1>GomokuMind</h1>
+        <h1><span className="header-icon">{themeInfo.icon}</span> GomokuMind</h1>
         <p className="subtitle">15×15 五子棋AI对战平台</p>
+        <ThemeSwitcher current={theme} onChange={setTheme} />
       </header>
 
       <main className="app-main">
@@ -233,6 +262,7 @@ const App: React.FC = () => {
               onMove={handleMove}
               disabled={!canHumanMove()}
               lastMove={game.move_history.length > 0 ? game.move_history[game.move_history.length - 1] : null}
+              boardColors={boardColors}
             />
           </div>
         )}
