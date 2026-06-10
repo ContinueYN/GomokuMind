@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -108,7 +111,7 @@ func nextID() string {
 func getStrategy(aiType string) game_engine.Strategy {
 	switch AIType(aiType) {
 	case AIMCTS:
-		return mcts.NewMCTSStrategy(100)
+		return mcts.NewMCTSStrategy(5000)
 	case AIHeuristic:
 		fallthrough
 	default:
@@ -119,6 +122,46 @@ func getStrategy(aiType string) game_engine.Strategy {
 func isGoStrategy(aiType string) bool {
 	t := AIType(aiType)
 	return t == AIHeuristic || t == AIMCTS
+}
+
+// callPythonStrategy 通过子进程调用Python策略桥接
+func callPythonStrategy(aiType string, board [][]int, player int) (Move, error) {
+	// 找到策略目录
+	pyBridge := filepath.Join("strategies", "python_bridge.py")
+
+	input := map[string]interface{}{
+		"strategy": aiType,
+		"board":    board,
+		"player":   player,
+	}
+
+	inputJSON, _ := json.Marshal(input)
+
+	cmd := exec.Command("python", pyBridge)
+	cmd.Stdin = bytes.NewReader(inputJSON)
+
+	var outBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+
+	if err := cmd.Run(); err != nil {
+		return Move{}, fmt.Errorf("python strategy failed: %w (stderr may have more info)", err)
+	}
+
+	var result struct {
+		Row   int    `json:"row"`
+		Col   int    `json:"col"`
+		Error string `json:"error,omitempty"`
+	}
+
+	if err := json.Unmarshal(outBuf.Bytes(), &result); err != nil {
+		return Move{}, fmt.Errorf("failed to parse python response: %w, output: %s", err, outBuf.String())
+	}
+
+	if result.Error != "" {
+		return Move{}, fmt.Errorf("python strategy error: %s", result.Error)
+	}
+
+	return Move{Row: result.Row, Col: result.Col}, nil
 }
 
 // ---- 工具函数 ----
@@ -300,21 +343,50 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 		aiType = info.WhiteAI
 	}
 
-	if !isGoStrategy(aiType) {
+	// Go 原生策略
+	if isGoStrategy(aiType) {
+		strategy := getStrategy(aiType)
+		boardState := eng.GetBoardState()
+
+		p := 1
+		if eng.CurrentTurn == game_engine.White {
+			p = -1
+		}
+
+		move := strategy.GetMove(boardState, p)
+
+		if err := eng.MakeMove(move.Row, move.Col); err != nil {
+			store.mu.Unlock()
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		updated := engineToGame(id, eng, info.BlackAI, info.WhiteAI)
+		updated.CreatedAt = info.CreatedAt
+		updated.UpdatedAt = time.Now().Format(time.RFC3339)
+		info.UpdatedAt = updated.UpdatedAt
 		store.mu.Unlock()
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("strategy '%s' requires Python runtime, not available in Go server", aiType))
+
+		writeJSON(w, http.StatusOK, MoveResponse{
+			Move: Move{Row: move.Row, Col: move.Col},
+			Game: updated,
+		})
 		return
 	}
 
-	strategy := getStrategy(aiType)
-	boardState := eng.GetBoardState()
-
-	player := 1
+	// Python 策略 (q-learning, ppo)
+	boardForPython := cellStateToPiece(eng.Board)
+	pythonPlayer := 1
 	if eng.CurrentTurn == game_engine.White {
-		player = -1
+		pythonPlayer = -1
 	}
 
-	move := strategy.GetMove(boardState, player)
+	move, err := callPythonStrategy(aiType, boardForPython, pythonPlayer)
+	if err != nil {
+		store.mu.Unlock()
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("python strategy error: %v", err))
+		return
+	}
 
 	if err := eng.MakeMove(move.Row, move.Col); err != nil {
 		store.mu.Unlock()

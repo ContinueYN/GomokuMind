@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { AIType } from '../types';
+import { AIType, GameConfig, GameMode } from '../types';
 import './GameControl.css';
 
 interface GameControlProps {
-  onCreateGame: (blackAI: AIType, whiteAI: AIType) => void;
+  onCreateGame: (config: GameConfig) => void;
   loading: boolean;
 }
 
@@ -15,15 +15,25 @@ const AI_OPTIONS: { value: AIType; label: string; desc: string }[] = [
 ];
 
 const GameControl: React.FC<GameControlProps> = ({ onCreateGame, loading }) => {
+  const [mode, setMode] = useState<GameMode>('pve_black');
+  const [aiType, setAiType] = useState<AIType>('mcts');
   const [blackAI, setBlackAI] = useState<AIType>('mcts');
   const [whiteAI, setWhiteAI] = useState<AIType>('mcts');
-  const [mode, setMode] = useState<'ai' | 'pvp'>('ai');
 
   const handleCreate = () => {
-    if (mode === 'pvp') {
-      onCreateGame('heuristic', 'heuristic');
-    } else {
-      onCreateGame(blackAI, whiteAI);
+    switch (mode) {
+      case 'pvp':
+        onCreateGame({ mode: 'pvp', blackKind: 'human', whiteKind: 'human' });
+        break;
+      case 'pve_black':
+        onCreateGame({ mode: 'pve_black', blackKind: 'human', whiteKind: aiType });
+        break;
+      case 'pve_white':
+        onCreateGame({ mode: 'pve_white', blackKind: aiType, whiteKind: 'human' });
+        break;
+      case 'ai_vs_ai':
+        onCreateGame({ mode: 'ai_vs_ai', blackKind: blackAI, whiteKind: whiteAI });
+        break;
     }
   };
 
@@ -33,10 +43,16 @@ const GameControl: React.FC<GameControlProps> = ({ onCreateGame, loading }) => {
 
       <div className="mode-selector">
         <button
-          className={`mode-btn ${mode === 'ai' ? 'active' : ''}`}
-          onClick={() => setMode('ai')}
+          className={`mode-btn ${mode === 'pve_black' ? 'active' : ''}`}
+          onClick={() => setMode('pve_black')}
         >
-          人机对战
+          执黑先手
+        </button>
+        <button
+          className={`mode-btn ${mode === 'pve_white' ? 'active' : ''}`}
+          onClick={() => setMode('pve_white')}
+        >
+          执白后手
         </button>
         <button
           className={`mode-btn ${mode === 'pvp' ? 'active' : ''}`}
@@ -44,31 +60,60 @@ const GameControl: React.FC<GameControlProps> = ({ onCreateGame, loading }) => {
         >
           双人对战
         </button>
+        <button
+          className={`mode-btn ${mode === 'ai_vs_ai' ? 'active' : ''}`}
+          onClick={() => setMode('ai_vs_ai')}
+        >
+          AI 对战
+        </button>
       </div>
 
-      {mode === 'ai' && (
+      {(mode === 'pve_black' || mode === 'pve_white') && (
+        <div className="pve-config">
+          <p className="config-hint">
+            {mode === 'pve_black' ? '你执黑先手' : '你执白后手'}，对手策略：
+          </p>
+          <div className="ai-select">
+            <select value={aiType} onChange={e => setAiType(e.target.value as AIType)}>
+              {AI_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label} - {opt.desc}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="config-note">对局中可开启"托管"让 AI 代你落子</p>
+        </div>
+      )}
+
+      {mode === 'ai_vs_ai' && (
         <div className="ai-select-group">
           <div className="ai-select">
-            <label>黑棋AI (先手)</label>
+            <label>黑棋 AI (先手)</label>
             <select value={blackAI} onChange={e => setBlackAI(e.target.value as AIType)}>
               {AI_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label} - {opt.desc}
+                  {opt.label}
                 </option>
               ))}
             </select>
           </div>
           <div className="ai-select">
-            <label>白棋AI (后手)</label>
+            <label>白棋 AI (后手)</label>
             <select value={whiteAI} onChange={e => setWhiteAI(e.target.value as AIType)}>
               {AI_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label} - {opt.desc}
+                  {opt.label}
                 </option>
               ))}
             </select>
           </div>
+          <p className="config-note">对局有 1.5 秒落子间隔，可暂停观察</p>
         </div>
+      )}
+
+      {mode === 'pvp' && (
+        <p className="config-hint">两位玩家在同一设备上轮流落子</p>
       )}
 
       <button

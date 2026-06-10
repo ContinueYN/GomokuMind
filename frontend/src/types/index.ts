@@ -9,6 +9,18 @@ export type GameStatus = 'playing' | 'black_win' | 'white_win' | 'draw';
 
 export type AIType = 'heuristic' | 'mcts' | 'q-learning' | 'ppo';
 
+// 游戏模式
+export type GameMode = 'pvp' | 'pve_black' | 'pve_white' | 'ai_vs_ai';
+
+// 玩家类型
+export type PlayerKind = 'human' | AIType;
+
+export interface GameConfig {
+  mode: GameMode;
+  blackKind: PlayerKind;
+  whiteKind: PlayerKind;
+}
+
 export interface Board {
   board: Piece[][];
 }

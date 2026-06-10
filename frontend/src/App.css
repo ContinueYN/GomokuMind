@@ -108,6 +108,72 @@
   color: #e2b04a;
 }
 
+.btn-autoplay {
+  padding: 0.5rem 1rem;
+  border: 1px solid #445;
+  border-radius: 6px;
+  background: transparent;
+  color: #8899aa;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.btn-autoplay:hover {
+  border-color: #e2b04a;
+  color: #e2b04a;
+}
+
+.btn-autoplay.active {
+  border-color: #e2b04a;
+  color: #e2b04a;
+  background: rgba(226, 176, 74, 0.15);
+  animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: #e2b04a; }
+  50% { border-color: #f0d68a; }
+}
+
+.btn-hint {
+  padding: 0.5rem 1rem;
+  border: 1px dashed #556;
+  border-radius: 6px;
+  background: transparent;
+  color: #667;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.btn-hint:hover:not(:disabled) {
+  border-color: #8899aa;
+  color: #8899aa;
+}
+
+.game-controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.autoplay-badge {
+  background: rgba(226, 176, 74, 0.15);
+  color: #e2b04a;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* Game Container */
 .game-container {
   display: flex;
@@ -138,16 +204,6 @@
   color: #e2b04a;
 }
 
-.thinking-indicator {
-  color: #8899aa;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
 .game-details {
   display: flex;
   justify-content: center;
@@ -155,10 +211,6 @@
   color: #8899aa;
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
-}
-
-.game-actions {
-  margin-top: 0.5rem;
 }
 
 /* Error Toast */
