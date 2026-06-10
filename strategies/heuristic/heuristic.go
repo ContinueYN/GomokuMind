@@ -1,6 +1,7 @@
 package heuristic
 
 import (
+	"fmt"
 	"math"
 
 	game_engine "gomokumind/game-engine"
@@ -60,6 +61,7 @@ func (h *HeuristicStrategy) Train(episodes int) error {
 
 // 获取候选位置（已有棋子周围2格内）
 func (h *HeuristicStrategy) getCandidates(board [game_engine.BoardSize][game_engine.BoardSize]int) []game_engine.Move {
+	seen := make(map[string]bool)
 	var candidates []game_engine.Move
 	hasPiece := false
 
@@ -72,7 +74,11 @@ func (h *HeuristicStrategy) getCandidates(board [game_engine.BoardSize][game_eng
 					for dj := -2; dj <= 2; dj++ {
 						r, c := i+di, j+dj
 						if r >= 0 && r < game_engine.BoardSize && c >= 0 && c < game_engine.BoardSize && board[r][c] == 0 {
-							candidates = append(candidates, game_engine.Move{Row: r, Col: c})
+							key := fmt.Sprintf("%d,%d", r, c)
+							if !seen[key] {
+								seen[key] = true
+								candidates = append(candidates, game_engine.Move{Row: r, Col: c})
+							}
 						}
 					}
 				}

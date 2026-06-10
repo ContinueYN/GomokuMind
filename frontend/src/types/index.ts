@@ -7,7 +7,7 @@ export type Piece = 0 | 1 | 2;
 
 export type GameStatus = 'playing' | 'black_win' | 'white_win' | 'draw';
 
-export type AIType = 'heuristic' | 'minimax' | 'threat' | 'mcts' | 'hybrid';
+export type AIType = 'heuristic' | 'mcts' | 'q-learning' | 'ppo';
 
 export interface Board {
   board: Piece[][];

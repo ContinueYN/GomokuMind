@@ -6,12 +6,11 @@
 import sys
 import os
 
-# 添加策略路径
-sys.path.append(os.path.join(os.path.dirname(__file__), 'q-learning'))
-sys.path.append(os.path.join(os.path.dirname(__file__), 'ppo'))
+# 添加父目录到路径，确保 strategies 包可被导入
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from q_learning import QLearningStrategy
-from ppo_strategy import PPOStrategy
+from strategies.q_learning import QLearningStrategy
+from strategies.ppo import PPOStrategy
 
 def train_q_learning(episodes=1000):
     """训练Q-Learning策略"""

@@ -22,16 +22,19 @@ GomokuMind/
 │   └── strategy.go        # 策略接口定义
 ├── strategies/            # 策略实现
 │   ├── heuristic/         # 策略1: 启发式规则 (Go)
-│   ├── mcts/              # 策略4: 蒙特卡洛树搜索 (Go)
-│   ├── q-learning/        # 策略2: Q-Learning (Python)
-│   ├── ppo/               # 策略3: PPO Actor-Critic (Python)
+│   ├── mcts/              # 策略2: 蒙特卡洛树搜索 (Go)
+│   ├── q-learning/        # 策略3: Q-Learning (Python)
+│   ├── ppo/               # 策略4: PPO Actor-Critic (Python)
 │   ├── requirements.txt   # Python依赖
 │   └── train.py           # 训练脚本入口
-├── evaluation/            # 对战评估模块
+├── evaluation/            # 对战评估模块 (CLI)
 │   └── main.go            # 策略间对战、胜率统计
+├── server/                # HTTP API 服务
+│   └── main.go            # RESTful 接口，端口 8080
 ├── frontend/              # 前端可视化界面
 │   └── src/               # React + TypeScript + Vite
 ├── go.mod                 # Go模块配置
+├── go.sum                 # Go依赖校验和
 └── README.md              # 项目说明
 ```
 
@@ -72,15 +75,42 @@ python strategies/train.py --strategy ppo --episodes 500
 ### 运行对战评估
 
 ```bash
-cd evaluation
-go run main.go
+go run ./evaluation
 ```
+
+### 启动后端服务
+
+```bash
+go run ./server
+```
+
+服务启动在 `http://127.0.0.1:8080`，提供以下 REST API：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/health` | 健康检查 |
+| POST | `/api/gomoku` | 创建新游戏 |
+| GET | `/api/gomoku` | 列出所有游戏 |
+| GET | `/api/gomoku/:id` | 获取游戏状态 |
+| PUT | `/api/gomoku/:id` | 玩家落子 |
+| POST | `/api/gomoku/:id/ai-move` | AI 自动落子 |
+| DELETE | `/api/gomoku/:id` | 删除游戏 |
 
 ### 启动前端
 
 ```bash
 cd frontend
 npm run dev
+```
+
+前端将代理 API 请求到后端服务。完整启动流程：
+
+```bash
+# 终端1: 启动后端
+go run ./server
+
+# 终端2: 启动前端
+cd frontend && npm run dev
 ```
 
 ## 策略说明

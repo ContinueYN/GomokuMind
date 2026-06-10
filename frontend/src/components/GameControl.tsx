@@ -8,16 +8,15 @@ interface GameControlProps {
 }
 
 const AI_OPTIONS: { value: AIType; label: string; desc: string }[] = [
-  { value: 'hybrid', label: '混合策略', desc: '威胁检测 + Minimax搜索 (推荐)' },
-  { value: 'minimax', label: 'Minimax', desc: 'Alpha-Beta剪枝 + 迭代加深' },
-  { value: 'threat', label: '威胁空间', desc: 'VCF/VCT 连续冲四求解' },
-  { value: 'mcts', label: 'MCTS', desc: '蒙特卡洛树搜索' },
-  { value: 'heuristic', label: '启发式', desc: '纯棋型评估，快速响应' },
+  { value: 'mcts', label: 'MCTS', desc: '蒙特卡洛树搜索 (推荐)' },
+  { value: 'heuristic', label: '启发式', desc: '棋型评估，快速响应' },
+  { value: 'q-learning', label: 'Q-Learning', desc: '经典强化学习' },
+  { value: 'ppo', label: 'PPO', desc: 'Actor-Critic 深度学习' },
 ];
 
 const GameControl: React.FC<GameControlProps> = ({ onCreateGame, loading }) => {
-  const [blackAI, setBlackAI] = useState<AIType>('hybrid');
-  const [whiteAI, setWhiteAI] = useState<AIType>('hybrid');
+  const [blackAI, setBlackAI] = useState<AIType>('mcts');
+  const [whiteAI, setWhiteAI] = useState<AIType>('mcts');
   const [mode, setMode] = useState<'ai' | 'pvp'>('ai');
 
   const handleCreate = () => {

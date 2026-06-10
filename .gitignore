@@ -1,6 +1,3 @@
-# Go
-go.sum
-
 # Python
 __pycache__/
 *.py[cod]
@@ -24,9 +21,13 @@ frontend/.vite/
 # IDE
 .vscode/
 .idea/
+.trae/
 *.swp
 *.swo
 *~
+
+# Build artifacts
+*.exe
 
 # OS
 .DS_Store

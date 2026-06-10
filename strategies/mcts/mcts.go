@@ -1,9 +1,9 @@
 package mcts
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
-	"time"
 
 	game_engine "gomokumind/game-engine"
 )
@@ -37,8 +37,6 @@ func (m *MCTSStrategy) Name() string {
 }
 
 func (m *MCTSStrategy) GetMove(board [game_engine.BoardSize][game_engine.BoardSize]int, player int) game_engine.Move {
-	rand.Seed(time.Now().UnixNano())
-
 	// 基于当前board创建根节点
 	root := &MCTSNode{
 		state:  m.boardToGame(board),
@@ -50,7 +48,7 @@ func (m *MCTSStrategy) GetMove(board [game_engine.BoardSize][game_engine.BoardSi
 	for i := 0; i < m.simulations; i++ {
 		node := m.selectNode(root)
 		winner := m.simulate(node.state)
-		m.backpropagate(node, winner, player)
+		m.backpropagate(node, winner)
 	}
 
 	// 选择访问次数最多的子节点
@@ -115,7 +113,7 @@ func (m *MCTSStrategy) expand(node *MCTSNode) *MCTSNode {
 				move:   move,
 				state:  newState,
 				parent: node,
-				player: node.player,
+				player: -node.player,
 			}
 			node.children = append(node.children, child)
 			return child
@@ -147,16 +145,16 @@ func (m *MCTSStrategy) simulate(state *game_engine.GameEngine) int {
 }
 
 // 反向传播
-func (m *MCTSStrategy) backpropagate(node *MCTSNode, winner int, originalPlayer int) {
+func (m *MCTSStrategy) backpropagate(node *MCTSNode, winner int) {
 	for node != nil {
 		node.visits++
 
-		// 计算得分
+		// 从当前节点的玩家视角计算得分
 		score := 0.0
 		if winner == 0 {
 			score = 0.5 // 平局
-		} else if (originalPlayer == 1 && winner == 1) || (originalPlayer == -1 && winner == -1) {
-			score = 1.0
+		} else if node.player == winner {
+			score = 1.0 // 当前节点玩家获胜
 		}
 		node.wins += score
 
@@ -218,5 +216,5 @@ func (m *MCTSStrategy) boardToGame(board [game_engine.BoardSize][game_engine.Boa
 }
 
 func moveKey(move game_engine.Move) string {
-	return string(rune(move.Row*game_engine.BoardSize + move.Col))
+	return fmt.Sprintf("%d,%d", move.Row, move.Col)
 }

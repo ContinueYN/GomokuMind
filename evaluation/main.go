@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 
 	game_engine "gomokumind/game-engine"
 	"gomokumind/strategies/heuristic"
@@ -69,8 +67,6 @@ func RunMatch(strategy1, strategy2 game_engine.Strategy, games int) MatchResult 
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-
 	fmt.Println("========================================")
 	fmt.Println("     五子棋策略对比评估系统")
 	fmt.Println("========================================")
