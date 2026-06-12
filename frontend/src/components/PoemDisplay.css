@@ -1,0 +1,136 @@
+/* ==========================================
+   PoemDisplay — 诗句背景层
+   左右各一列轨道，诗句在轨道内循环滚动
+   左侧向下滚动，右侧向上滚动
+   mask 渐变实现诗句在边缘逐渐透明
+   ========================================== */
+
+.poem-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ====== 轨道容器 ====== */
+.poem-zone {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 60px;
+  overflow: hidden;
+
+  /* 隔离渲染，避免主题切换时连带触发重绘 */
+  contain: layout style paint;
+
+  /* 上下边缘渐变透明 */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 18%,
+    black 82%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 18%,
+    black 82%,
+    transparent 100%
+  );
+}
+
+/* 水平位置：紧贴 app-main 两侧 */
+.poem-zone-left {
+  left: max(0px, calc((100vw - 1080px) / 2));
+}
+
+.poem-zone-right {
+  right: max(0px, calc((100vw - 1080px) / 2));
+}
+
+/* ====== 轨道内滚动条 ====== */
+.poem-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* 不用 gap，改用 margin-bottom 确保 -50% 位移精确对齐 */
+}
+
+/* 左侧：向下滚动（诗句从上方进入，从下方消失）*/
+.poem-scroll-down {
+  animation: scroll-down 18s linear infinite;
+}
+
+/* 右侧：向上滚动（诗句从下方进入，从上方消失）*/
+.poem-scroll-up {
+  animation: scroll-up 18s linear infinite;
+  animation-delay: -4s;
+}
+
+/* ====== 诗句图片 ====== */
+.poem-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  flex-shrink: 0;
+  margin-bottom: 64px;
+  will-change: filter;
+}
+
+/* ====== 主题色彩 — 通过 filter 着色 SVG ====== */
+/* 原文 SVG 填充色为棕色 ~#843900 */
+
+[data-theme="spring"] .poem-img {
+  filter: hue-rotate(94deg) saturate(1.4) brightness(1.2);
+}
+
+[data-theme="autumn"] .poem-img {
+  filter: hue-rotate(-15deg) saturate(1.6) brightness(1.35);
+}
+
+[data-theme="winter"] .poem-img {
+  filter: hue-rotate(185deg) saturate(1.3) brightness(1.2);
+}
+
+[data-theme="starry"] .poem-img {
+  filter: hue-rotate(242deg) saturate(1.2) brightness(1.3);
+}
+
+/* ====== 滚动动画 ====== */
+
+/* 向下滚动：轨道整体下移，诗句从上方渐入、向下方渐出 */
+@keyframes scroll-down {
+  from {
+    transform: translateY(-50%);
+  }
+  to {
+    transform: translateY(0%);
+  }
+}
+
+/* 向上滚动：轨道整体上移，诗句从下方渐入、向上方渐出 */
+@keyframes scroll-up {
+  from {
+    transform: translateY(0%);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+/* ====== 响应式 ====== */
+@media (max-width: 1120px) {
+  .poem-zone {
+    width: 40px;
+  }
+  .poem-zone-left {
+    left: 4px;
+  }
+  .poem-zone-right {
+    right: 4px;
+  }
+  .poem-img {
+    margin-bottom: 40px;
+  }
+}

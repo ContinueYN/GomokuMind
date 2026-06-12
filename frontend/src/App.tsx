@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Board from './components/Board';
 import GameControl from './components/GameControl';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import PoemDisplay from './components/PoemDisplay';
 import { gameApi } from './services/api';
 import { Game, GameConfig, GameMode, PlayerKind, AIType } from './types';
 import { ThemeKey, DEFAULT_THEME, THEMES, BOARD_THEMES } from './themes';
@@ -9,14 +10,6 @@ import './App.css';
 
 const AI_MOVE_DELAY = 1500; // AI vs AI 模式下的落子间隔 (ms)
 const AI_RESPONSE_DELAY = 400;  // PvE 模式下 AI 响应间隔 (ms)
-
-/* 各主题对应的装饰粒子 */
-const PARTICLE_MAP: Record<ThemeKey, string> = {
-  spring: '🌸',
-  autumn: '🍂',
-  winter: '❄️',
-  starry: '✨',
-};
 
 const App: React.FC = () => {
   const [game, setGame] = useState<Game | null>(null);
@@ -190,12 +183,8 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      {/* 装饰粒子层 */}
-      <div className={`particles-layer ${themeInfo.particles}`}>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <span key={i} className="particle">{PARTICLE_MAP[theme]}</span>
-        ))}
-      </div>
+      {/* 诗句背景层 */}
+      <PoemDisplay />
 
       <header className="app-header">
         <h1><span className="header-icon">{themeInfo.icon}</span> GomokuMind</h1>

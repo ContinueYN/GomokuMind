@@ -35,12 +35,13 @@ GomokuMind/
 ├── server/                # HTTP API 服务
 │   └── main.go            # RESTful 接口，端口 8080
 ├── frontend/              # 前端可视化界面 (React + TypeScript + Vite)
-│   ├── public/            # 静态资源 (favicon.ico)
+│   ├── public/            # 静态资源 (poem SVG, favicon)
 │   └── src/
 │       ├── components/    # UI 组件
 │       │   ├── Board.tsx          # Canvas 绘制的 15×15 棋盘
 │       │   ├── GameControl.tsx    # 游戏创建面板（模式/AI选择）
-│       │   └── ThemeSwitcher.tsx   # 主题切换组件
+│       │   ├── PoemDisplay.tsx    # 诗句轮播背景层
+│       │   └── ThemeSwitcher.tsx  # 主题切换组件
 │       ├── services/      # API 请求封装
 │       │   └── api.ts
 │       ├── themes/        # 主题系统
@@ -139,6 +140,12 @@ cd frontend && npm run dev
 | AI 对战 | 两个 AI 自动对弈，可调节速度 |
 
 点击「托管」按钮可让 AI 接管你的回合，再次点击取消托管。
+
+### 界面特色
+
+- **四时主题** — 春之呼吸、秋日郊野、寒冬低语、繁星守望四种配色，一键切换
+- **诗句轮播** — 棋盘两侧各有一列古风诗句沿竖向轨道循环滚动，随主题变换色彩，增添诗香与灵动感
+- **文字不可选中** — 全局禁用用户选择，避免拖拽操作误选中界面文字，保持沉浸式体验
 
 ## 策略说明
 
