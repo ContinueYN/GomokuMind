@@ -31,15 +31,15 @@ export interface Game {
   current_player: Piece;
   status: GameStatus;
   move_history: Move[];
-  black_ai: AIType;
-  white_ai: AIType;
+  black_ai: string;
+  white_ai: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateGameRequest {
-  black_ai: AIType;
-  white_ai: AIType;
+  black_ai?: AIType;
+  white_ai?: AIType;
 }
 
 export interface MoveRequest {

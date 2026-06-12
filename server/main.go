@@ -63,8 +63,8 @@ type Game struct {
 }
 
 type CreateGameRequest struct {
-	BlackAI string `json:"black_ai"`
-	WhiteAI string `json:"white_ai"`
+	BlackAI string `json:"black_ai,omitempty"`
+	WhiteAI string `json:"white_ai,omitempty"`
 }
 
 type MoveRequest struct {
@@ -337,10 +337,18 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	// 确定当前应使用的 AI
+	// 确定当前应使用的 AI：优先从 info 读取，若为空则从请求体获取，再为空默认 heuristic
 	aiType := info.BlackAI
 	if eng.CurrentTurn == game_engine.White {
 		aiType = info.WhiteAI
+	}
+	if aiType == "" {
+		var body MoveRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil && body.AI != "" {
+			aiType = body.AI
+		} else {
+			aiType = string(AIHeuristic)
+		}
 	}
 
 	// Go 原生策略

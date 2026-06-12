@@ -1,4 +1,4 @@
-import { Game, CreateGameRequest, MoveRequest, GameResponse, MoveResponse } from '../types';
+import { Game, CreateGameRequest, MoveRequest, GameResponse, MoveResponse, AIType } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -32,9 +32,10 @@ export const gameApi = {
       body: JSON.stringify(req),
     }),
 
-  getAIMove: (id: string) =>
+  getAIMove: (id: string, ai?: AIType) =>
     request<MoveResponse>(`/gomoku/${id}/ai-move`, {
       method: 'POST',
+      body: ai ? JSON.stringify({ ai }) : undefined,
     }),
 
   listGames: () =>

@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap');
 
 /* ============================================
-   GomokuMind — 二次元风格 全局样式
+   GomokuMind — 全局样式
    ============================================ */
 
 /* ---------- 基础变量 & 主题 ---------- */
@@ -340,6 +340,31 @@ body {
   border-color: var(--accent);
   color: var(--accent);
   border-style: solid;
+}
+
+.hint-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hint-select {
+  padding: 0.55rem 0.6rem;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--text);
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  outline: none;
+}
+
+.hint-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--glow);
 }
 
 /* ---------- 游戏内容区 ---------- */

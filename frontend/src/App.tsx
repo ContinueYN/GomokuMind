@@ -4,12 +4,12 @@ import GameControl from './components/GameControl';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import PoemDisplay from './components/PoemDisplay';
 import { gameApi } from './services/api';
-import { Game, GameConfig, GameMode, PlayerKind, AIType } from './types';
+import { Game, GameConfig, CreateGameRequest, PlayerKind, AIType } from './types';
 import { ThemeKey, DEFAULT_THEME, THEMES, BOARD_THEMES } from './themes';
 import './App.css';
 
 const AI_MOVE_DELAY = 1500; // AI vs AI 模式下的落子间隔 (ms)
-const AI_RESPONSE_DELAY = 400;  // PvE 模式下 AI 响应间隔 (ms)
+const AI_RESPONSE_DELAY = 500;  // PvE 模式下 AI 响应间隔 (ms)
 
 const App: React.FC = () => {
   const [game, setGame] = useState<Game | null>(null);
@@ -18,23 +18,23 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [aiThinking, setAiThinking] = useState(false);
   const [autoPlay, setAutoPlay] = useState(false); // 托管/自动对弈开关
+  const [hintAI, setHintAI] = useState<AIType>('mcts'); // AI 代下策略选择
   const [theme, setTheme] = useState<ThemeKey>(DEFAULT_THEME);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 创建游戏
+  // 创建游戏：仅 AI 传递策略类型，真人玩家不传
   const createGame = useCallback(async (cfg: GameConfig) => {
     setLoading(true);
     setError(null);
     setAutoPlay(false);
     setConfig(cfg);
 
-    // 映射到 server 的 black_ai / white_ai
-    const toAI = (k: PlayerKind): AIType => (k === 'human' ? 'heuristic' : k);
-    const blackAI = toAI(cfg.blackKind);
-    const whiteAI = toAI(cfg.whiteKind);
+    const req: CreateGameRequest = {};
+    if (cfg.blackKind !== 'human') req.black_ai = cfg.blackKind;
+    if (cfg.whiteKind !== 'human') req.white_ai = cfg.whiteKind;
 
     try {
-      const res = await gameApi.createGame({ black_ai: blackAI, white_ai: whiteAI });
+      const res = await gameApi.createGame(req);
       setGame(res.game);
     } catch (err: any) {
       setError(err.message);
@@ -55,7 +55,7 @@ const App: React.FC = () => {
       return autoPlay || kind !== 'human';
     }
     return false;
-  }, [game, config, autoPlay]);
+  }, [game?.current_player, game?.status, config?.mode, config?.blackKind, config?.whiteKind, autoPlay]);
 
   // 是否允许人类点击落子
   const canHumanMove = useCallback((): boolean => {
@@ -66,7 +66,7 @@ const App: React.FC = () => {
     const isBlack = game.current_player === 1;
     const kind = isBlack ? config.blackKind : config.whiteKind;
     return kind === 'human';
-  }, [game, config, aiThinking, loading, autoPlay]);
+  }, [game?.current_player, game?.status, config?.mode, config?.blackKind, config?.whiteKind, autoPlay, aiThinking, loading]);
 
   // 人类落子
   const handleMove = useCallback(async (row: number, col: number) => {
@@ -82,22 +82,22 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [game, canHumanMove]);
+  }, [game?.id, canHumanMove]);
 
-  // AI 落子（由 useEffect 触发）
-  const triggerAIMove = useCallback(async () => {
+  // AI 落子（aiOverride 为可选代下策略，不传则用游戏配置的 AI）
+  const triggerAIMove = useCallback(async (aiOverride?: AIType) => {
     if (!game || game.status !== 'playing') return;
 
     setAiThinking(true);
     try {
-      const res = await gameApi.getAIMove(game.id);
+      const res = await gameApi.getAIMove(game.id, aiOverride);
       setGame(res.game);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setAiThinking(false);
     }
-  }, [game]);
+  }, [game?.id, game?.status]);
 
   // 创建游戏后，如果是执白后手模式，AI 自动下第一步
   useEffect(() => {
@@ -110,7 +110,7 @@ const App: React.FC = () => {
         return () => clearTimeout(timer);
       }
     }
-  }, [game?.id]);
+  }, [game?.id, config, autoPlay, triggerAIMove]);
 
   // AI 自动落子循环
   useEffect(() => {
@@ -129,7 +129,7 @@ const App: React.FC = () => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [game, game?.current_player, game?.status, config, autoPlay, isCurrentPlayerAI, triggerAIMove]);
+  }, [game?.id, config?.mode, autoPlay, isCurrentPlayerAI, triggerAIMove]);
 
   // 同步主题到 html 标签
   useEffect(() => {
@@ -143,16 +143,16 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // 当前主题信息
+  // 当前主题信息（！是非空断言，意味着这个值一定存在）
   const themeInfo = useMemo(() => THEMES.find(t => t.key === theme)!, [theme]);
 
   const boardColors = useMemo(() => BOARD_THEMES[theme], [theme]);
 
-  // 一键 AI 代下（单步）
+  // AI提示（单步代下）
   const handleSingleAI = useCallback(async () => {
     if (!game || game.status !== 'playing' || aiThinking) return;
-    triggerAIMove();
-  }, [game, aiThinking, triggerAIMove]);
+    triggerAIMove(hintAI);
+  }, [game?.status, aiThinking, hintAI, triggerAIMove]);
 
   // 托管开关切换
   const toggleAutoPlay = useCallback(() => {
@@ -231,16 +231,28 @@ const App: React.FC = () => {
                   </button>
                 )}
 
-                {/* AI 代下单步：仅 PvE 且非托管时显示 */}
+                {/* AI 代下：仅 PvE 且非托管时显示，可自选策略 */}
                 {config && (config.mode === 'pve_black' || config.mode === 'pve_white')
                   && game.status === 'playing' && !autoPlay && !aiThinking && (
-                  <button
-                    className="btn-hint"
-                    onClick={handleSingleAI}
-                    disabled={loading}
-                  >
-                    AI 代下
-                  </button>
+                  <div className="hint-group">
+                    <select
+                      className="hint-select"
+                      value={hintAI}
+                      onChange={e => setHintAI(e.target.value as AIType)}
+                    >
+                      <option value="mcts">MCTS</option>
+                      <option value="heuristic">启发式</option>
+                      <option value="q-learning">Q-Learning</option>
+                      <option value="ppo">PPO</option>
+                    </select>
+                    <button
+                      className="btn-hint"
+                      onClick={handleSingleAI}
+                      disabled={loading}
+                    >
+                      AI 代下
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

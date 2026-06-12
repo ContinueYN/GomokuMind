@@ -8,7 +8,7 @@ interface GameControlProps {
 }
 
 const AI_OPTIONS: { value: AIType; label: string; desc: string }[] = [
-  { value: 'mcts', label: 'MCTS', desc: '蒙特卡洛树搜索 (推荐)' },
+  { value: 'mcts', label: 'MCTS', desc: '蒙特卡洛树搜索' },
   { value: 'heuristic', label: '启发式', desc: '棋型评估，快速响应' },
   { value: 'q-learning', label: 'Q-Learning', desc: '经典强化学习' },
   { value: 'ppo', label: 'PPO', desc: 'Actor-Critic 深度学习' },

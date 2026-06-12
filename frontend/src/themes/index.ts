@@ -9,7 +9,6 @@ export interface ThemeInfo {
   key: ThemeKey;
   name: string;
   icon: string;       // 装饰 emoji
-  particles: string;  // 背景装饰粒子 CSS 类名
 }
 
 export const THEMES: ThemeInfo[] = [
@@ -17,25 +16,21 @@ export const THEMES: ThemeInfo[] = [
     key: 'spring',
     name: '春之呼吸',
     icon: '🌸',
-    particles: 'particles-spring',
   },
   {
     key: 'autumn',
     name: '秋日郊野',
     icon: '🍂',
-    particles: 'particles-autumn',
   },
   {
     key: 'winter',
     name: '寒冬低语',
     icon: '❄️',
-    particles: 'particles-winter',
   },
   {
     key: 'starry',
     name: '繁星守望',
     icon: '✨',
-    particles: 'particles-starry',
   },
 ];
 
