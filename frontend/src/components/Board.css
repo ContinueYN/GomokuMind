@@ -1,3 +1,8 @@
+/* ===========================================
+   Board — 棋盘 Canvas 容器样式
+   =========================================== */
+
+/* 棋盘外层包裹器：圆角 + 阴影 + 裁剪溢出 */
 .board-wrapper {
   display: inline-block;
   border-radius: 16px;
@@ -8,22 +13,26 @@
   transition: box-shadow 0.5s ease;
 }
 
+/* 悬停时阴影加深，增强立体感 */
 .board-wrapper:hover {
   box-shadow:
     0 0 0 3px var(--card-border),
     0 16px 48px rgba(0, 0, 0, 0.16);
 }
 
+/* Canvas 元素：默认手型光标表示可点击 */
 .board-canvas {
   cursor: pointer;
   display: block;
   transition: filter 0.3s ease;
 }
 
+/* 非禁用状态下悬停轻微提亮 */
 .board-canvas:hover:not([style*="cursor: not-allowed"]) {
   filter: brightness(1.02);
 }
 
+/* 禁用状态（非人类回合等）改为禁止光标 */
 .board-canvas[style*="cursor: not-allowed"] {
   cursor: not-allowed;
 }

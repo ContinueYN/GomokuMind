@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { AIType, GameConfig, GameMode } from '../types';
 import './GameControl.css';
 
+/** 父组件传入的属性 */
 interface GameControlProps {
-  onCreateGame: (config: GameConfig) => void;
-  loading: boolean;
+  onCreateGame: (config: GameConfig) => void;  // 创建游戏回调，传递模式和 AI 配置
+  loading: boolean;                             // 是否正在创建中（禁用按钮防重复点击）
 }
 
+/** 可选 AI 策略列表，用于下拉选择 */
 const AI_OPTIONS: { value: AIType; label: string; desc: string }[] = [
   { value: 'mcts', label: 'MCTS', desc: '蒙特卡洛树搜索' },
   { value: 'heuristic', label: '启发式', desc: '棋型评估，快速响应' },
@@ -14,12 +16,34 @@ const AI_OPTIONS: { value: AIType; label: string; desc: string }[] = [
   { value: 'ppo', label: 'PPO', desc: 'Actor-Critic 深度学习' },
 ];
 
+/**
+ * 游戏创建面板
+ *
+ * 提供四种游戏模式的选择：
+ * - 执黑先手（人 vs AI）
+ * - 执白后手（AI vs 人）
+ * - 双人对战（人 vs 人）
+ * - AI 对战（AI vs AI，可分别选策略）
+ *
+ * 根据所选模式动态显示不同的配置项（对手 AI 选择、双方 AI 选择等）。
+ */
 const GameControl: React.FC<GameControlProps> = ({ onCreateGame, loading }) => {
+  // 当前选中的游戏模式
   const [mode, setMode] = useState<GameMode>('pve_black');
+  // PvE 模式下对手 AI 的策略类型
   const [aiType, setAiType] = useState<AIType>('mcts');
+  // AI vs AI 模式下黑棋的策略类型
   const [blackAI, setBlackAI] = useState<AIType>('mcts');
+  // AI vs AI 模式下白棋的策略类型
   const [whiteAI, setWhiteAI] = useState<AIType>('mcts');
 
+  /**
+   * 根据当前模式组装 GameConfig 并回调父组件
+   * pve_black: 人(黑) vs AI(白)   — 人类先手
+   * pve_white: AI(黑) vs 人(白)   — 人类后手
+   * pvp:       人(黑) vs 人(白)   — 双人同屏
+   * ai_vs_ai:  AI(黑) vs AI(白)   — AI 自动对弈
+   */
   const handleCreate = () => {
     switch (mode) {
       case 'pvp':

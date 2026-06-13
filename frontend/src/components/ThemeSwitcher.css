@@ -1,3 +1,8 @@
+/* ===========================================
+   ThemeSwitcher — 主题切换按钮组样式
+   =========================================== */
+
+/* 整体容器：水平排列、居中、可换行 */
 .theme-switcher {
   display: flex;
   align-items: center;
@@ -7,12 +12,14 @@
   flex-wrap: wrap;
 }
 
+/* 左侧标签文字 */
 .theme-label {
   font-size: 0.85rem;
   color: var(--text-muted);
   letter-spacing: 0.05em;
 }
 
+/* 按钮组：水平排列、居中、可换行 */
 .theme-options {
   display: flex;
   gap: 0.4rem;
@@ -20,6 +27,7 @@
   justify-content: center;
 }
 
+/* 主题按钮：胶囊形，带图标和文字 */
 .theme-btn {
   display: flex;
   align-items: center;
@@ -35,6 +43,7 @@
   white-space: nowrap;
 }
 
+/* 悬停：边框变色 + 轻微上浮 */
 .theme-btn:hover {
   border-color: var(--accent);
   color: var(--text);
@@ -42,6 +51,7 @@
   box-shadow: 0 4px 16px var(--glow);
 }
 
+/* 激活态：强调色背景 + 发光阴影 */
 .theme-btn.active {
   border-color: var(--accent);
   background: var(--accent-glass);
@@ -58,6 +68,7 @@
   font-size: 0.78rem;
 }
 
+/* 窄屏：垂直排列 */
 @media (max-width: 600px) {
   .theme-switcher {
     flex-direction: column;

@@ -3,22 +3,32 @@ import { Piece, Move } from '../types';
 import { BoardThemeColors } from '../themes';
 import './Board.css';
 
+/** 组件接收的属性 */
 interface BoardProps {
-  board: Piece[][];
-  currentPlayer: Piece;
-  onMove: (row: number, col: number) => void;
-  disabled: boolean;
-  lastMove: Move | null;
-  boardColors: BoardThemeColors;
+  board: Piece[][];          // 15x15 棋盘数据：0=空 1=黑 2=白
+  currentPlayer: Piece;      // 当前回合方，用于悬停预览颜色
+  onMove: (row: number, col: number) => void;  // 落子回调，由父组件处理 API 请求
+  disabled: boolean;         // 禁止落子（非人类回合 / AI思考中 / 游戏结束）
+  lastMove: Move | null;     // 上一步落子位置，绘制红星标记
+  boardColors: BoardThemeColors;  // 当前主题对应的棋盘配色
 }
 
-const BOARD_SIZE = 15;
-const CELL_SIZE = 36;
-const PADDING = 30;
-const CANVAS_SIZE = PADDING * 2 + CELL_SIZE * (BOARD_SIZE - 1);
+// 棋盘绘制常量
+const BOARD_SIZE = 15;       // 15×15 标准五子棋盘
+const CELL_SIZE = 36;        // 单元格像素大小
+const PADDING = 30;          // 棋盘四周留白
+const CANVAS_SIZE = PADDING * 2 + CELL_SIZE * (BOARD_SIZE - 1);  // Canvas 总像素
 
+/**
+ * 棋盘组件
+ *
+ * 使用 Canvas 自绘棋盘，不依赖 DOM 元素。
+ * 每次 board/lastMove/hoverPos/theme 变化时触发重绘。
+ * 鼠标悬停时在空位显示半透明预览棋子，点击时回调 onMove。
+ */
 const Board: React.FC<BoardProps> = ({ board, currentPlayer, onMove, disabled, lastMove, boardColors }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // 鼠标悬停的格子坐标 [row, col]，null 表示不在棋盘上方
   const [hoverPos, setHoverPos] = useState<[number, number] | null>(null);
 
   /* ======== 主绘制函数 ======== */
@@ -144,11 +154,17 @@ const Board: React.FC<BoardProps> = ({ board, currentPlayer, onMove, disabled, l
     }
   };
 
+  // 依赖变化时重新绘制棋盘
   useEffect(() => {
     drawBoard();
   }, [board, lastMove, hoverPos, currentPlayer, disabled, boardColors]);
 
   /* ======== 鼠标坐标转换 ======== */
+  /**
+   * 将鼠标像素坐标转换为棋盘行列索引
+   * 使用 Math.round 实现最近格点吸附（靠近哪个格子就映射到哪个格子）
+   * 返回 [row, col]，超出棋盘范围返回 null
+   */
   const getGridPos = (e: React.MouseEvent<HTMLCanvasElement>): [number, number] | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -163,6 +179,7 @@ const Board: React.FC<BoardProps> = ({ board, currentPlayer, onMove, disabled, l
     return null;
   };
 
+  /** 点击落子：仅当未禁用且点击空位时触发 */
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (disabled) return;
     const pos = getGridPos(e);
@@ -171,6 +188,7 @@ const Board: React.FC<BoardProps> = ({ board, currentPlayer, onMove, disabled, l
     }
   };
 
+  /** 鼠标移动：更新悬停预览位置 */
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (disabled) {
       setHoverPos(null);
@@ -180,6 +198,7 @@ const Board: React.FC<BoardProps> = ({ board, currentPlayer, onMove, disabled, l
     setHoverPos(pos);
   };
 
+  /** 鼠标离开棋盘：清除悬停预览 */
   const handleMouseLeave = () => {
     setHoverPos(null);
   };

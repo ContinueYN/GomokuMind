@@ -12,14 +12,31 @@ const AI_MOVE_DELAY = 1500; // AI vs AI 模式下的落子间隔 (ms)
 const AI_RESPONSE_DELAY = 500;  // PvE 模式下 AI 响应间隔 (ms)
 
 const App: React.FC = () => {
+  // 存储完整的游戏状态：棋盘、当前玩家、历史记录、胜负等
   const [game, setGame] = useState<Game | null>(null);
+
+  // 存储游戏配置：模式(pvp/pve/ai_vs_ai)、黑白棋类型
   const [config, setConfig] = useState<GameConfig | null>(null);
+
+  // 加载状态，防止重复点击和显示加载动画
   const [loading, setLoading] = useState(false);
+
+  // 错误信息，如网络错误、服务器错误等
   const [error, setError] = useState<string | null>(null);
+
+  // AI思考状态，用于显示"思考中..."提示
   const [aiThinking, setAiThinking] = useState(false);
-  const [autoPlay, setAutoPlay] = useState(false); // 托管/自动对弈开关
-  const [hintAI, setHintAI] = useState<AIType>('mcts'); // AI 代下策略选择
+
+  // 托管开关：true时AI自动下棋，false时手动
+  const [autoPlay, setAutoPlay] = useState(false); 
+  
+  // 【新功能】选择AI代下的策略类型：MCTS/启发式/Q-Learning/PPO
+  const [hintAI, setHintAI] = useState<AIType>('mcts');
+
+  // 当前主题
   const [theme, setTheme] = useState<ThemeKey>(DEFAULT_THEME);
+
+  // 存储定时器ID，用于清理
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 创建游戏：仅 AI 传递策略类型，真人玩家不传
@@ -59,12 +76,14 @@ const App: React.FC = () => {
 
   // 是否允许人类点击落子
   const canHumanMove = useCallback((): boolean => {
+    // 必须满足：游戏存在 && 配置存在 && 游戏中 && AI没在思考 && 没在加载
     if (!game || !config || game.status !== 'playing' || aiThinking || loading) return false;
     if (config.mode === 'ai_vs_ai') return false;
     if (config.mode === 'pvp') return true;
     if (autoPlay) return false;
     const isBlack = game.current_player === 1;
     const kind = isBlack ? config.blackKind : config.whiteKind;
+    // 只有当前玩家是人类的回合才能下
     return kind === 'human';
   }, [game?.current_player, game?.status, config?.mode, config?.blackKind, config?.whiteKind, autoPlay, aiThinking, loading]);
 
@@ -76,6 +95,7 @@ const App: React.FC = () => {
     setError(null);
     try {
       const res = await gameApi.makeMove(game.id, { row, col });
+      // 更新游戏状态
       setGame(res.game);
     } catch (err: any) {
       setError(err.message);
@@ -84,13 +104,15 @@ const App: React.FC = () => {
     }
   }, [game?.id, canHumanMove]);
 
-  // AI 落子（aiOverride 为可选代下策略，不传则用游戏配置的 AI）
+  // AI 落子（aiOverride 为可选代下策略，可以临时指定AI策略
   const triggerAIMove = useCallback(async (aiOverride?: AIType) => {
     if (!game || game.status !== 'playing') return;
 
     setAiThinking(true);
     try {
       const res = await gameApi.getAIMove(game.id, aiOverride);
+      // 如果传了aiOverride（如'mcts'），就用这个策略下棋
+      // 如果不传，用游戏创建时配置的AI策略
       setGame(res.game);
     } catch (err: any) {
       setError(err.message);

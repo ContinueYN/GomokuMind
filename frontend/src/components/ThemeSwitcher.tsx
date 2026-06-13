@@ -2,11 +2,19 @@ import React from 'react';
 import { ThemeKey, THEMES } from '../themes';
 import './ThemeSwitcher.css';
 
+/** 父组件传入的属性 */
 interface ThemeSwitcherProps {
-  current: ThemeKey;
-  onChange: (key: ThemeKey) => void;
+  current: ThemeKey;                         // 当前激活的主题 key
+  onChange: (key: ThemeKey) => void;          // 切换主题回调
 }
 
+/**
+ * 主题切换器
+ *
+ * 遍历 THEMES 配置渲染按钮组。
+ * 当前激活的主题按钮高亮显示。
+ * 点击按钮时回调 onChange 通知父组件更新主题状态。
+ */
 const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ current, onChange }) => {
   return (
     <div className="theme-switcher">
