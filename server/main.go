@@ -17,78 +17,86 @@ import (
 	"gomokumind/strategies/mcts"
 )
 
-// ---- 类型定义 ----
+// ============================================================
+//  类型定义 — 用于与服务端外部（前端 / Python 策略）交换数据
+// ============================================================
 
-type Piece int
-
-const (
-	Empty Piece = iota
-	Black
-	White
-)
-
+// GameStatus 游戏状态枚举（字符串形式，便于前端直接展示）
 type GameStatus string
 
+// 理论上可以直接用 string，但是可以"约束"编译器 — 让编译器帮你确保正确的人传正确的值。
 const (
-	Playing  GameStatus = "playing"
-	BlackWin GameStatus = "black_win"
-	WhiteWin GameStatus = "white_win"
-	Draw     GameStatus = "draw"
+	Playing  GameStatus = "playing"   // 对局进行中
+	BlackWin GameStatus = "black_win" // 黑棋胜
+	WhiteWin GameStatus = "white_win" // 白棋胜
+	Draw     GameStatus = "draw"      // 平局（棋盘满）
 )
 
+// AIType AI 策略标识，对应策略工厂的分发键
 type AIType string
 
 const (
-	AIHeuristic AIType = "heuristic"
-	AIMCTS      AIType = "mcts"
-	AIQLearning AIType = "q-learning"
-	AIPPO       AIType = "ppo"
+	AIHeuristic AIType = "heuristic"  // 启发式棋型评估（Go 原生）
+	AIMCTS      AIType = "mcts"       // 蒙特卡洛树搜索（Go 原生）
+	AIQLearning AIType = "q-learning" // Q-Learning 强化学习（Python）
+	AIPPO       AIType = "ppo"        // PPO 深度学习（Python）
 )
 
+// Move 一步落子（行列坐标），JSON 序列化字段名与前端对齐
 type Move struct {
 	Row int `json:"row"`
 	Col int `json:"col"`
 }
 
+// Game 对外展示的游戏视图，从 engine 转换而来
 type Game struct {
 	ID            string  `json:"id"`
-	Board         [][]int `json:"board"`
-	CurrentPlayer int     `json:"current_player"`
-	Status        string  `json:"status"`
-	MoveHistory   []Move  `json:"move_history"`
-	BlackAI       string  `json:"black_ai"`
-	WhiteAI       string  `json:"white_ai"`
-	CreatedAt     string  `json:"created_at"`
-	UpdatedAt     string  `json:"updated_at"`
+	Board         [][]int `json:"board"`          // 15×15 二维数组：0=空 1=黑 2=白
+	CurrentPlayer int     `json:"current_player"` // 1=黑棋回合 2=白棋回合
+	Status        string  `json:"status"`         // playing / black_win / white_win / draw
+	MoveHistory   []Move  `json:"move_history"`   // 落子历史
+	BlackAI       string  `json:"black_ai"`       // 黑方 AI 类型（"" 表示人类）
+	WhiteAI       string  `json:"white_ai"`       // 白方 AI 类型（"" 表示人类）
+	CreatedAt     string  `json:"created_at"`     // 创建时间 RFC3339
+	UpdatedAt     string  `json:"updated_at"`     // 最后修改时间 RFC3339
 }
 
+// ---- 请求 / 响应体 ----
+
+// CreateGameRequest 前端创建游戏时传入的 JSON，omitempty - 如果字段为空，JSON序列化时忽略该字段
 type CreateGameRequest struct {
-	BlackAI string `json:"black_ai,omitempty"`
-	WhiteAI string `json:"white_ai,omitempty"`
+	BlackAI string `json:"black_ai,omitempty"` // "" = 人类
+	WhiteAI string `json:"white_ai,omitempty"` // "" = 人类
 }
 
+// MoveRequest 前端落子或 AI 代下时传入的 JSON
 type MoveRequest struct {
 	Row int    `json:"row"`
 	Col int    `json:"col"`
-	AI  string `json:"ai,omitempty"`
+	AI  string `json:"ai,omitempty"` // 仅 AI 代下时携带策略类型
 }
 
+// GameResponse 大多数接口的统一返回格式
 type GameResponse struct {
 	Game  *Game  `json:"game,omitempty"`
 	Error string `json:"error,omitempty"`
 }
 
+// MoveResponse AI 落子接口的返回格式，比 GameResponse 多一个 move
 type MoveResponse struct {
 	Move Move  `json:"move"`
 	Game *Game `json:"game"`
 }
 
-// ---- 游戏存储 ----
+// ============================================================
+//  游戏存储 — 内存 map，服务重启即丢失（适合演示/调试）
+// ============================================================
 
+// GameStore 线程安全的游戏存储：持有引擎实例 + 展示信息
 type GameStore struct {
 	mu    sync.RWMutex
-	games map[string]*game_engine.GameEngine
-	infos map[string]*Game
+	games map[string]*game_engine.GameEngine // 引擎实例，真实数据源
+	infos map[string]*Game                   // 展示用快照（缓存 AI 类型等字段）
 }
 
 var store = &GameStore{
@@ -96,9 +104,11 @@ var store = &GameStore{
 	infos: make(map[string]*Game),
 }
 
+// 自增 ID 需要专用锁，避免与 store 锁竞争
 var idCounter int
 var idMu sync.Mutex
 
+// nextID 生成唯一游戏 ID：game_<毫秒时间戳>_<自增序号>
 func nextID() string {
 	idMu.Lock()
 	defer idMu.Unlock()
@@ -106,27 +116,31 @@ func nextID() string {
 	return fmt.Sprintf("game_%d_%d", time.Now().UnixMilli(), idCounter)
 }
 
-// ---- 策略工厂 ----
+// ============================================================
+//  策略工厂
+// ============================================================
 
+// getStrategy 根据 aiType 返回对应的 Go 原生策略实现
+// 注意：当前仅创建新实例，未复用，每次调用都会创建新的策略对象
 func getStrategy(aiType string) game_engine.Strategy {
 	switch AIType(aiType) {
 	case AIMCTS:
-		return mcts.NewMCTSStrategy(5000)
-	case AIHeuristic:
-		fallthrough
+		return mcts.NewMCTSStrategy(400) // MCTS 模拟次数
 	default:
+		// heuristic 或任何未识别类型均回退到启发式
 		return heuristic.NewHeuristicStrategy()
 	}
 }
 
+// isGoStrategy 判断策略是否为 Go 原生实现（mcts / heuristic）
 func isGoStrategy(aiType string) bool {
 	t := AIType(aiType)
 	return t == AIHeuristic || t == AIMCTS
 }
 
-// callPythonStrategy 通过子进程调用Python策略桥接
+// callPythonStrategy 通过子进程调用 Python 策略桥接
+// stdin 传入 JSON 参数，stdout 回读 JSON 结果
 func callPythonStrategy(aiType string, board [][]int, player int) (Move, error) {
-	// 找到策略目录
 	pyBridge := filepath.Join("strategies", "python_bridge.py")
 
 	input := map[string]interface{}{
@@ -135,7 +149,10 @@ func callPythonStrategy(aiType string, board [][]int, player int) (Move, error) 
 		"player":   player,
 	}
 
-	inputJSON, _ := json.Marshal(input)
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		return Move{}, fmt.Errorf("failed to marshal strategy input: %w", err)
+	}
 
 	cmd := exec.Command("python", pyBridge)
 	cmd.Stdin = bytes.NewReader(inputJSON)
@@ -144,7 +161,7 @@ func callPythonStrategy(aiType string, board [][]int, player int) (Move, error) 
 	cmd.Stdout = &outBuf
 
 	if err := cmd.Run(); err != nil {
-		return Move{}, fmt.Errorf("python strategy failed: %w (stderr may have more info)", err)
+		return Move{}, fmt.Errorf("python strategy failed: %w", err)
 	}
 
 	var result struct {
@@ -164,8 +181,12 @@ func callPythonStrategy(aiType string, board [][]int, player int) (Move, error) 
 	return Move{Row: result.Row, Col: result.Col}, nil
 }
 
-// ---- 工具函数 ----
+// ============================================================
+//  工具函数 — engine 内部类型 ⇄ 对外 JSON 类型 的转换
+// ============================================================
 
+// cellStateToPiece 将引擎的棋盘（固定数组）转为前端用的二维切片
+// 0 = 空  1 = 黑  2 = 白
 func cellStateToPiece(b [game_engine.BoardSize][game_engine.BoardSize]game_engine.CellState) [][]int {
 	result := make([][]int, game_engine.BoardSize)
 	for i := 0; i < game_engine.BoardSize; i++ {
@@ -177,31 +198,34 @@ func cellStateToPiece(b [game_engine.BoardSize][game_engine.BoardSize]game_engin
 	return result
 }
 
+// winnerToStatus 将引擎的 CellState 胜负值转为字符串状态
 func winnerToStatus(w game_engine.CellState) GameStatus {
 	switch w {
 	case game_engine.Black:
 		return BlackWin
 	case game_engine.White:
 		return WhiteWin
-	default:
-		if w == game_engine.Empty {
-			return Draw
-		}
+	default: // game_engine.Empty → 平局
 		return Draw
 	}
 }
 
+// engineToGame 将引擎的内部状态转换为对外展示的 Game 结构
+// 注意：不设置 CreatedAt / UpdatedAt，由调用方决定
 func engineToGame(id string, eng *game_engine.GameEngine, blackAI, whiteAI string) *Game {
+	// 根据引擎的 GameOver / Winner 确定展示状态
 	status := Playing
 	if eng.GameOver {
 		status = winnerToStatus(eng.Winner)
 	}
 
+	// 落子历史转换
 	history := make([]Move, len(eng.MoveHistory))
 	for i, m := range eng.MoveHistory {
 		history[i] = Move{Row: m.Row, Col: m.Col}
 	}
 
+	// CurrentPlayer: engine 的 Black=1, White=2 → 前端期望 1/2
 	player := 1
 	if eng.CurrentTurn == game_engine.White {
 		player = 2
@@ -218,22 +242,28 @@ func engineToGame(id string, eng *game_engine.GameEngine, blackAI, whiteAI strin
 	}
 }
 
+// writeJSON 统一写入 JSON 响应
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
 }
 
+// writeError 快捷写入错误响应
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, GameResponse{Error: msg})
 }
 
-// ---- HTTP 处理器 ----
+// ============================================================
+//  HTTP 处理器
+// ============================================================
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
+// healthHandler 健康检查，返回 {"status":"ok"}
+func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// createGameHandler 新建游戏并返回初始状态
 func createGameHandler(w http.ResponseWriter, r *http.Request) {
 	var req CreateGameRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -244,12 +274,14 @@ func createGameHandler(w http.ResponseWriter, r *http.Request) {
 	id := nextID()
 	now := time.Now().Format(time.RFC3339)
 
+	// 创建引擎实例（Board=全空, CurrentTurn=黑棋先手）
 	eng := game_engine.NewGame()
 
+	// 构建展示对象
 	info := &Game{
 		ID:            id,
 		Board:         cellStateToPiece(eng.Board),
-		CurrentPlayer: 1,
+		CurrentPlayer: 1, // 黑棋先手
 		Status:        string(Playing),
 		MoveHistory:   []Move{},
 		BlackAI:       req.BlackAI,
@@ -258,6 +290,7 @@ func createGameHandler(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:     now,
 	}
 
+	// 写入存储
 	store.mu.Lock()
 	store.games[id] = eng
 	store.infos[id] = info
@@ -266,7 +299,8 @@ func createGameHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, GameResponse{Game: info})
 }
 
-func getGameHandler(w http.ResponseWriter, r *http.Request, id string) {
+// getGameHandler 获取指定游戏的最新状态
+func getGameHandler(w http.ResponseWriter, _ *http.Request, id string) {
 	store.mu.RLock()
 	eng, ok := store.games[id]
 	info, infoOk := store.infos[id]
@@ -277,6 +311,7 @@ func getGameHandler(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
+	// 从引擎实时构建返回对象
 	updated := engineToGame(id, eng, info.BlackAI, info.WhiteAI)
 	updated.CreatedAt = info.CreatedAt
 	updated.UpdatedAt = time.Now().Format(time.RFC3339)
@@ -284,6 +319,7 @@ func getGameHandler(w http.ResponseWriter, r *http.Request, id string) {
 	writeJSON(w, http.StatusOK, GameResponse{Game: updated})
 }
 
+// makeMoveHandler 处理人类玩家的落子请求
 func makeMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	var req MoveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -306,12 +342,14 @@ func makeMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
+	// 调用引擎落子（内部完成胜负判定 + 回合切换）
 	if err := eng.MakeMove(req.Row, req.Col); err != nil {
 		store.mu.Unlock()
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	// 落子成功后刷新展示对象
 	updated := engineToGame(id, eng, info.BlackAI, info.WhiteAI)
 	updated.CreatedAt = info.CreatedAt
 	updated.UpdatedAt = time.Now().Format(time.RFC3339)
@@ -321,6 +359,11 @@ func makeMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	writeJSON(w, http.StatusOK, GameResponse{Game: updated})
 }
 
+// aiMoveHandler 处理 AI 落子请求（自动计算出最优棋步并落子）
+//
+// 注意：当前实现中，策略计算（包括 Python 子进程调用）在写锁内执行，
+// 意味着 AI 思考期间整个服务器的所有游戏操作都会被阻塞。
+// 生产环境应将策略计算移到锁外，仅落子时加锁。
 func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	store.mu.Lock()
 	eng, ok := store.games[id]
@@ -337,7 +380,10 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	// 确定当前应使用的 AI：优先从 info 读取，若为空则从请求体获取，再为空默认 heuristic
+	// 确定当前应使用的 AI 类型：
+	//   1. 优先从游戏创建时的配置读取（info.BlackAI / info.WhiteAI）
+	//   2. 若为空（如人类落子后请求 AI 代下），从请求体读取 ai 字段
+	//   3. 仍然为空则默认 heuristic
 	aiType := info.BlackAI
 	if eng.CurrentTurn == game_engine.White {
 		aiType = info.WhiteAI
@@ -351,14 +397,15 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 		}
 	}
 
-	// Go 原生策略
+	// 分支一：Go 原生策略（heuristic / mcts）
 	if isGoStrategy(aiType) {
 		strategy := getStrategy(aiType)
-		boardState := eng.GetBoardState()
+		boardState := eng.GetBoardState() // 1=黑 -1=白 0=空
 
-		p := 1
+		// engine 的 CurrentTurn 转为策略接口期望的 player 值
+		p := 1 // 黑棋
 		if eng.CurrentTurn == game_engine.White {
-			p = -1
+			p = -1 // 白棋
 		}
 
 		move := strategy.GetMove(boardState, p)
@@ -382,7 +429,9 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	// Python 策略 (q-learning, ppo)
+	// 分支二：Python 策略（q-learning / ppo）
+	// cellStateToPiece 返回 0=空 1=黑 2=白，与 player 一起传入 Python 桥接脚本，
+	// 由脚本内部转换为各自策略期望的编码
 	boardForPython := cellStateToPiece(eng.Board)
 	pythonPlayer := 1
 	if eng.CurrentTurn == game_engine.White {
@@ -414,7 +463,8 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	})
 }
 
-func listGamesHandler(w http.ResponseWriter, r *http.Request) {
+// listGamesHandler 列出所有游戏（不含历史记录，仅摘要）
+func listGamesHandler(w http.ResponseWriter, _ *http.Request) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
@@ -430,7 +480,8 @@ func listGamesHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"games": games})
 }
 
-func deleteGameHandler(w http.ResponseWriter, r *http.Request, id string) {
+// deleteGameHandler 删除指定游戏（从内存中移除引擎和展示数据）
+func deleteGameHandler(w http.ResponseWriter, _ *http.Request, id string) {
 	store.mu.Lock()
 	delete(store.games, id)
 	delete(store.infos, id)
@@ -439,42 +490,54 @@ func deleteGameHandler(w http.ResponseWriter, r *http.Request, id string) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
-// ---- 路由 ----
+// ============================================================
+//  路由 — 基于路径和方法的简单分发
+// ============================================================
 
+// router 是唯一的 HTTP 入口，完成 CORS 设置 + 路径路由
 func router(w http.ResponseWriter, r *http.Request) {
+	// 允许跨域（开发阶段对所有来源开放）生产环境要指定具体域名
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
+	// 浏览器预检请求直接返回
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
+	// 去掉 /api 前缀后匹配路由
 	path := strings.TrimPrefix(r.URL.Path, "/api")
 
 	switch {
 	case path == "/health":
 		healthHandler(w, r)
 
+	// POST /api/gomoku — 创建游戏
 	case path == "/gomoku" && r.Method == "POST":
 		createGameHandler(w, r)
 
+	// GET /api/gomoku — 列出所有游戏
 	case path == "/gomoku" && r.Method == "GET":
 		listGamesHandler(w, r)
 
+	// POST /api/gomoku/:id/ai-move — AI 落子
 	case strings.HasPrefix(path, "/gomoku/") && strings.HasSuffix(path, "/ai-move") && r.Method == "POST":
 		id := strings.TrimSuffix(strings.TrimPrefix(path, "/gomoku/"), "/ai-move")
 		aiMoveHandler(w, r, id)
 
+	// PUT /api/gomoku/:id — 人类落子
 	case strings.HasPrefix(path, "/gomoku/") && r.Method == "PUT":
 		id := strings.TrimPrefix(path, "/gomoku/")
 		makeMoveHandler(w, r, id)
 
+	// DELETE /api/gomoku/:id — 删除游戏
 	case strings.HasPrefix(path, "/gomoku/") && r.Method == "DELETE":
 		id := strings.TrimPrefix(path, "/gomoku/")
 		deleteGameHandler(w, r, id)
 
+	// GET /api/gomoku/:id — 获取游戏状态
 	case strings.HasPrefix(path, "/gomoku/") && r.Method == "GET":
 		id := strings.TrimPrefix(path, "/gomoku/")
 		getGameHandler(w, r, id)
@@ -484,6 +547,7 @@ func router(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// main 启动 HTTP 服务器监听 8080 端口
 func main() {
 	addr := ":8080"
 	fmt.Printf("GomokuMind server starting on %s\n", addr)
