@@ -121,11 +121,11 @@ const App: React.FC = () => {
     }
   }, [game?.id, game?.status]);
 
-  // 创建游戏后，如果是执白后手模式，AI 自动下第一步
+  // 创建游戏后，AI vs AI 模式需手动启动，不在此自动开始
   useEffect(() => {
     if (game && config && game.status === 'playing' && game.move_history.length === 0) {
-      if (config.mode === 'pve_white' || config.mode === 'ai_vs_ai') {
-        if (config.mode === 'ai_vs_ai' && !autoPlay) return;
+      if (config.mode === 'ai_vs_ai') {
+        if (!autoPlay) return;
         const timer = setTimeout(() => {
           triggerAIMove();
         }, AI_RESPONSE_DELAY);
@@ -209,7 +209,7 @@ const App: React.FC = () => {
       <PoemDisplay />
 
       <header className="app-header">
-        <h1><span className="header-icon">{themeInfo.icon}</span> GomokuMind</h1>
+        <h1><img className="header-icon" src={themeInfo.icon} alt={themeInfo.name} /> GomokuMind</h1>
         <p className="subtitle">15×15 五子棋AI对战平台</p>
         <ThemeSwitcher current={theme} onChange={setTheme} />
       </header>

@@ -22,60 +22,109 @@
 /* 按钮组：水平排列、居中、可换行 */
 .theme-options {
   display: flex;
-  gap: 0.4rem;
+  gap: 1rem;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
 }
 
-/* 主题按钮：胶囊形，带图标和文字 */
+/* 主题按钮：正圆，overflow:hidden 裁剪文字，hover 时拉伸为胶囊 */
 .theme-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.85rem;
+  position: relative;
+  width: 44px;
+  height: 44px;
   border: 1.5px solid var(--border-subtle);
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--card-bg);
   color: var(--text-muted);
-  font-size: 0.8rem;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
+  overflow: hidden;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.35s ease,
+              background 0.35s ease,
+              box-shadow 0.35s ease,
+              transform 0.35s ease;
 }
 
-/* 悬停：边框变色 + 轻微上浮 */
+/* 图标：锚定在按钮左侧，44px 圆时恰好居中 */
+.theme-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+}
+
+/* 主题名：锚定在图标右侧，默认被 overflow:hidden 裁剪 + 向左偏移 */
+.theme-name {
+  position: absolute;
+  left: 38px;
+  top: 50%;
+  transform: translateY(-50%) translateX(-12px);
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  line-height: 1;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 悬停：按钮拉长 + 边框变色 + 轻微上浮 */
 .theme-btn:hover {
+  width: 106px;
   border-color: var(--accent);
-  color: var(--text);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px var(--glow);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px var(--glow);
+}
+
+/* 悬停时名称从左侧滑入 */
+.theme-btn:hover .theme-name {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
 }
 
 /* 激活态：强调色背景 + 发光阴影 */
 .theme-btn.active {
   border-color: var(--accent);
   background: var(--accent-glass);
-  color: var(--accent);
-  font-weight: 600;
   box-shadow: 0 0 20px var(--glow);
 }
 
-.theme-icon {
-  font-size: 1rem;
+.theme-btn.active .theme-icon {
+  filter: drop-shadow(0 0 4px var(--glow));
 }
 
-.theme-name {
-  font-size: 0.78rem;
+.theme-btn.active .theme-name {
+  color: var(--accent);
+  font-weight: 600;
 }
 
-/* 窄屏：垂直排列 */
+/* 窄屏：缩小尺寸 */
 @media (max-width: 600px) {
   .theme-switcher {
     flex-direction: column;
     gap: 0.5rem;
   }
+  .theme-options {
+    gap: 0.8rem;
+  }
   .theme-btn {
-    padding: 0.35rem 0.65rem;
-    font-size: 0.72rem;
+    width: 38px;
+    height: 38px;
+    border-radius: 19px;
+  }
+  .theme-btn:hover {
+    width: 92px;
+  }
+  .theme-icon {
+    width: 20px;
+    height: 20px;
+    left: 9px;
+  }
+  .theme-name {
+    font-size: 0.7rem;
+    left: 33px;
   }
 }

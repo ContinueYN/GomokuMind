@@ -15,22 +15,22 @@ export const THEMES: ThemeInfo[] = [
   {
     key: 'spring',
     name: '春之呼吸',
-    icon: '🌸',
+    icon: '/icons/spring.ico',
   },
   {
     key: 'autumn',
     name: '秋日郊野',
-    icon: '🍂',
+    icon: '/icons/autumn.ico',
   },
   {
     key: 'winter',
     name: '寒冬低语',
-    icon: '❄️',
+    icon: '/icons/winter.ico',
   },
   {
     key: 'starry',
     name: '繁星守望',
-    icon: '✨',
+    icon: '/icons/starry.ico',
   },
 ];
 

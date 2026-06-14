@@ -23,11 +23,15 @@ const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ current, onChange }) => {
         {THEMES.map(t => (
           <button
             key={t.key}
-            className={`theme-btn theme-${t.key} ${current === t.key ? 'active' : ''}`}
+            className={`theme-btn ${current === t.key ? 'active' : ''}`}
             onClick={() => onChange(t.key)}
             title={t.name}
           >
-            <span className="theme-icon">{t.icon}</span>
+            <img
+              className="theme-icon"
+              src={t.icon}
+              alt={t.name}
+            />
             <span className="theme-name">{t.name}</span>
           </button>
         ))}
