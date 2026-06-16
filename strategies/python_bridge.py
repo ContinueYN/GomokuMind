@@ -2,7 +2,7 @@
 Python策略桥接 - 通过stdin/stdout与Go后端通信
 
 输入格式 (stdin JSON):
-  {"strategy": "q-learning" | "ppo", "board": [[...], ...], "player": 1 | -1}
+  {"strategy": "q-learning", "board": [[...], ...], "player": 1 | -1}
 
 输出格式 (stdout JSON):
   {"row": 7, "col": 7}
@@ -199,8 +199,6 @@ def main():
 
     if strategy_name == "q-learning":
         move = handle_q_learning(board, player)
-    elif strategy_name == "ppo":
-        move = handle_ppo(board, player)
     else:
         print(json.dumps({"error": f"Unknown strategy: {strategy_name}"}))
         return
@@ -214,24 +212,9 @@ def handle_q_learning(board: np.ndarray, player: int):
         from strategies.q_learning import QLearningStrategy
         strategy = QLearningStrategy()
         strategy.load_model()
-        # 让Q-Learning策略选择落子
         move = strategy.get_move(board, player)
         return move
     except Exception as e:
-        # Q表不存在或加载失败，用启发式兜底
-        return heuristic_fallback(board, player)
-
-
-def handle_ppo(board: np.ndarray, player: int):
-    """调用PPO策略"""
-    try:
-        from strategies.ppo import PPOStrategy
-        strategy = PPOStrategy()
-        strategy.load_model()
-        move = strategy.get_move(board, player)
-        return move
-    except Exception as e:
-        # 模型不存在或加载失败，用启发式兜底
         return heuristic_fallback(board, player)
 
 

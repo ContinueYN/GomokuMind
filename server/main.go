@@ -13,6 +13,7 @@ import (
 	"time"
 
 	game_engine "gomokumind/game-engine"
+	"gomokumind/strategies/alphabeta"
 	"gomokumind/strategies/heuristic"
 	"gomokumind/strategies/mcts"
 )
@@ -38,8 +39,8 @@ type AIType string
 const (
 	AIHeuristic AIType = "heuristic"  // 启发式棋型评估（Go 原生）
 	AIMCTS      AIType = "mcts"       // 蒙特卡洛树搜索（Go 原生）
+	AIAlphaBeta AIType = "alphabeta"  // Alpha-Beta 增强搜索（Go 原生）
 	AIQLearning AIType = "q-learning" // Q-Learning 强化学习（Python）
-	AIPPO       AIType = "ppo"        // PPO 深度学习（Python）
 )
 
 // Move 一步落子（行列坐标），JSON 序列化字段名与前端对齐
@@ -121,21 +122,21 @@ func nextID() string {
 // ============================================================
 
 // getStrategy 根据 aiType 返回对应的 Go 原生策略实现
-// 注意：当前仅创建新实例，未复用，每次调用都会创建新的策略对象
 func getStrategy(aiType string) game_engine.Strategy {
 	switch AIType(aiType) {
 	case AIMCTS:
-		return mcts.NewMCTSStrategy(400) // MCTS 模拟次数
+		return mcts.NewMCTSStrategy(400)
+	case AIAlphaBeta:
+		return alphabeta.NewAlphaBetaStrategy(4)
 	default:
-		// heuristic 或任何未识别类型均回退到启发式
 		return heuristic.NewHeuristicStrategy()
 	}
 }
 
-// isGoStrategy 判断策略是否为 Go 原生实现（mcts / heuristic）
+// isGoStrategy 判断策略是否为 Go 原生实现（alphabeta / mcts / heuristic）
 func isGoStrategy(aiType string) bool {
 	t := AIType(aiType)
-	return t == AIHeuristic || t == AIMCTS
+	return t == AIHeuristic || t == AIMCTS || t == AIAlphaBeta
 }
 
 // callPythonStrategy 通过子进程调用 Python 策略桥接
@@ -429,7 +430,7 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	// 分支二：Python 策略（q-learning / ppo）
+	// 分支二：Python 策略（q-learning）
 	// cellStateToPiece 返回 0=空 1=黑 2=白，与 player 一起传入 Python 桥接脚本，
 	// 由脚本内部转换为各自策略期望的编码
 	boardForPython := cellStateToPiece(eng.Board)

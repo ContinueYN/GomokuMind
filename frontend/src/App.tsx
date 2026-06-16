@@ -30,7 +30,7 @@ const App: React.FC = () => {
   // 托管开关：true时AI自动下棋，false时手动
   const [autoPlay, setAutoPlay] = useState(false); 
   
-  // 【新功能】选择AI代下的策略类型：MCTS/启发式/Q-Learning/PPO
+  // AI代下策略类型：MCTS / Alpha-Beta / 启发式 / Q-Learning
   const [hintAI, setHintAI] = useState<AIType>('mcts');
 
   // 当前主题
@@ -38,6 +38,16 @@ const App: React.FC = () => {
 
   // 存储定时器ID，用于清理
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 对局结束弹窗：是否已被用户关闭
+  const [gameOverDismissed, setGameOverDismissed] = useState(false);
+
+  // 当游戏结束时（对局刚结束），重置弹窗状态
+  useEffect(() => {
+    if (game && game.status !== 'playing') {
+      setGameOverDismissed(false);
+    }
+  }, [game?.status]);
 
   // 创建游戏：仅 AI 传递策略类型，真人玩家不传
   const createGame = useCallback(async (cfg: GameConfig) => {
@@ -198,10 +208,30 @@ const App: React.FC = () => {
   };
 
   // 玩家类型标签
-  const playerLabel = (kind: PlayerKind): string => {
+  const playerLabel = useCallback((kind: PlayerKind): string => {
     if (kind === 'human') return '玩家';
     return `AI (${kind})`;
-  };
+  }, []);
+
+  // 对局结束弹窗信息
+  const gameOverInfo = useMemo(() => {
+    if (!game || !config || game.status === 'playing') return null;
+    switch (game.status) {
+      case 'black_win': return {
+        result: '黑棋获胜！',
+        detail: `黑方: ${playerLabel(config.blackKind)}  ·  ${game.move_history.length} 手`,
+      };
+      case 'white_win': return {
+        result: '白棋获胜！',
+        detail: `白方: ${playerLabel(config.whiteKind)}  ·  ${game.move_history.length} 手`,
+      };
+      case 'draw': return {
+        result: '平局！',
+        detail: `双方势均力敌  ·  ${game.move_history.length} 手`,
+      };
+      default: return null;
+    }
+  }, [game?.status, config, game?.move_history.length, playerLabel]);
 
   return (
     <div className="app">
@@ -237,7 +267,7 @@ const App: React.FC = () => {
               <div className="game-controls">
                 <button
                   className="btn-secondary"
-                  onClick={() => { setGame(null); setConfig(null); setAutoPlay(false); }}
+                  onClick={() => { setGame(null); setConfig(null); setAutoPlay(false); setGameOverDismissed(true); }}
                   disabled={loading}
                 >
                   新游戏
@@ -263,9 +293,9 @@ const App: React.FC = () => {
                       onChange={e => setHintAI(e.target.value as AIType)}
                     >
                       <option value="mcts">MCTS</option>
+                      <option value="alphabeta">Alpha-Beta</option>
                       <option value="heuristic">启发式</option>
                       <option value="q-learning">Q-Learning</option>
-                      <option value="ppo">PPO</option>
                     </select>
                     <button
                       className="btn-hint"
@@ -294,6 +324,30 @@ const App: React.FC = () => {
           <div className="error-toast">
             <span>{error}</span>
             <button onClick={() => setError(null)}>×</button>
+          </div>
+        )}
+
+        {/* 对局结束弹窗 */}
+        {gameOverInfo && !gameOverDismissed && (
+          <div className="gameover-overlay" onClick={() => setGameOverDismissed(true)}>
+            <div className="gameover-modal" onClick={e => e.stopPropagation()}>
+              <div className="gameover-result">{gameOverInfo.result}</div>
+              <div className="gameover-detail">{gameOverInfo.detail}</div>
+              <div className="gameover-buttons">
+                <button
+                  className="gameover-btn primary"
+                  onClick={() => { setGame(null); setConfig(null); setAutoPlay(false); setGameOverDismissed(true); }}
+                >
+                  新游戏
+                </button>
+                <button
+                  className="gameover-btn secondary"
+                  onClick={() => setGameOverDismissed(true)}
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>
