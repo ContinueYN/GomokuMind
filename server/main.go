@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,6 +12,7 @@ import (
 
 	game_engine "gomokumind/game-engine"
 	"gomokumind/strategies/alphabeta"
+	"gomokumind/strategies/alphazero"
 	"gomokumind/strategies/heuristic"
 	"gomokumind/strategies/mcts"
 )
@@ -37,10 +36,10 @@ const (
 type AIType string
 
 const (
-	AIHeuristic AIType = "heuristic"  // 启发式棋型评估（Go 原生）
-	AIMCTS      AIType = "mcts"       // 蒙特卡洛树搜索（Go 原生）
-	AIAlphaBeta AIType = "alphabeta"  // Alpha-Beta 增强搜索（Go 原生）
-	AIQLearning AIType = "q-learning" // Q-Learning 强化学习（Python）
+	AIHeuristic AIType = "heuristic" // 启发式棋型评估（Go 原生）
+	AIMCTS      AIType = "mcts"      // 蒙特卡洛树搜索（Go 原生）
+	AIAlphaBeta AIType = "alphabeta" // Alpha-Beta 增强搜索（Go 原生）
+	AIAlphaZero AIType = "alphazero" // AlphaZero 深度学习（Go + Python）
 )
 
 // Move 一步落子（行列坐标），JSON 序列化字段名与前端对齐
@@ -121,65 +120,24 @@ func nextID() string {
 //  策略工厂
 // ============================================================
 
-// getStrategy 根据 aiType 返回对应的 Go 原生策略实现
+// azStrategy AlphaZero 策略单例，服务器启动时初始化一次
+var azStrategy *alphazero.AlphaZeroStrategy
+
+// getStrategy 根据 aiType 返回对应的策略实现
 func getStrategy(aiType string) game_engine.Strategy {
 	switch AIType(aiType) {
 	case AIMCTS:
 		return mcts.NewMCTSStrategy(400)
 	case AIAlphaBeta:
 		return alphabeta.NewAlphaBetaStrategy(4)
+	case AIAlphaZero:
+		if azStrategy != nil {
+			return azStrategy
+		}
+		return heuristic.NewHeuristicStrategy()
 	default:
 		return heuristic.NewHeuristicStrategy()
 	}
-}
-
-// isGoStrategy 判断策略是否为 Go 原生实现（alphabeta / mcts / heuristic）
-func isGoStrategy(aiType string) bool {
-	t := AIType(aiType)
-	return t == AIHeuristic || t == AIMCTS || t == AIAlphaBeta
-}
-
-// callPythonStrategy 通过子进程调用 Python 策略桥接
-// stdin 传入 JSON 参数，stdout 回读 JSON 结果
-func callPythonStrategy(aiType string, board [][]int, player int) (Move, error) {
-	pyBridge := filepath.Join("strategies", "python_bridge.py")
-
-	input := map[string]interface{}{
-		"strategy": aiType,
-		"board":    board,
-		"player":   player,
-	}
-
-	inputJSON, err := json.Marshal(input)
-	if err != nil {
-		return Move{}, fmt.Errorf("failed to marshal strategy input: %w", err)
-	}
-
-	cmd := exec.Command("python", pyBridge)
-	cmd.Stdin = bytes.NewReader(inputJSON)
-
-	var outBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-
-	if err := cmd.Run(); err != nil {
-		return Move{}, fmt.Errorf("python strategy failed: %w", err)
-	}
-
-	var result struct {
-		Row   int    `json:"row"`
-		Col   int    `json:"col"`
-		Error string `json:"error,omitempty"`
-	}
-
-	if err := json.Unmarshal(outBuf.Bytes(), &result); err != nil {
-		return Move{}, fmt.Errorf("failed to parse python response: %w, output: %s", err, outBuf.String())
-	}
-
-	if result.Error != "" {
-		return Move{}, fmt.Errorf("python strategy error: %s", result.Error)
-	}
-
-	return Move{Row: result.Row, Col: result.Col}, nil
 }
 
 // ============================================================
@@ -398,53 +356,17 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 		}
 	}
 
-	// 分支一：Go 原生策略（heuristic / mcts）
-	if isGoStrategy(aiType) {
-		strategy := getStrategy(aiType)
-		boardState := eng.GetBoardState() // 1=黑 -1=白 0=空
+	// 统一使用 Go 策略接口（heuristic / mcts / alphabeta / alphazero）
+	strategy := getStrategy(aiType)
+	boardState := eng.GetBoardState() // 1=黑 -1=白 0=空
 
-		// engine 的 CurrentTurn 转为策略接口期望的 player 值
-		p := 1 // 黑棋
-		if eng.CurrentTurn == game_engine.White {
-			p = -1 // 白棋
-		}
-
-		move := strategy.GetMove(boardState, p)
-
-		if err := eng.MakeMove(move.Row, move.Col); err != nil {
-			store.mu.Unlock()
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		updated := engineToGame(id, eng, info.BlackAI, info.WhiteAI)
-		updated.CreatedAt = info.CreatedAt
-		updated.UpdatedAt = time.Now().Format(time.RFC3339)
-		info.UpdatedAt = updated.UpdatedAt
-		store.mu.Unlock()
-
-		writeJSON(w, http.StatusOK, MoveResponse{
-			Move: Move{Row: move.Row, Col: move.Col},
-			Game: updated,
-		})
-		return
-	}
-
-	// 分支二：Python 策略（q-learning）
-	// cellStateToPiece 返回 0=空 1=黑 2=白，与 player 一起传入 Python 桥接脚本，
-	// 由脚本内部转换为各自策略期望的编码
-	boardForPython := cellStateToPiece(eng.Board)
-	pythonPlayer := 1
+	// engine 的 CurrentTurn 转为策略接口期望的 player 值
+	p := 1 // 黑棋
 	if eng.CurrentTurn == game_engine.White {
-		pythonPlayer = -1
+		p = -1 // 白棋
 	}
 
-	move, err := callPythonStrategy(aiType, boardForPython, pythonPlayer)
-	if err != nil {
-		store.mu.Unlock()
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("python strategy error: %v", err))
-		return
-	}
+	move := strategy.GetMove(boardState, p)
 
 	if err := eng.MakeMove(move.Row, move.Col); err != nil {
 		store.mu.Unlock()
@@ -550,6 +472,18 @@ func router(w http.ResponseWriter, r *http.Request) {
 
 // main 启动 HTTP 服务器监听 8080 端口
 func main() {
+	// 初始化 AlphaZero 策略（持久 Python 推理进程）
+	modelPath := filepath.Join("strategies", "alphazero", "best.pth.tar")
+	var err error
+	azStrategy, err = alphazero.NewAlphaZeroStrategy(modelPath)
+	if err != nil {
+		log.Printf("WARNING: AlphaZero strategy failed to initialize: %v", err)
+		log.Println("AlphaZero will not be available; falling back to heuristic.")
+	} else {
+		defer azStrategy.Close()
+		log.Println("AlphaZero strategy initialized successfully.")
+	}
+
 	addr := ":8080"
 	fmt.Printf("GomokuMind server starting on %s\n", addr)
 	log.Fatal(http.ListenAndServe(addr, http.HandlerFunc(router)))

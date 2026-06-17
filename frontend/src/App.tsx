@@ -295,7 +295,7 @@ const App: React.FC = () => {
                       <option value="mcts">MCTS</option>
                       <option value="alphabeta">Alpha-Beta</option>
                       <option value="heuristic">启发式</option>
-                      <option value="q-learning">Q-Learning</option>
+                      <option value="alphazero">AlphaZero</option>
                     </select>
                     <button
                       className="btn-hint"

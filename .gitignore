@@ -34,8 +34,10 @@ frontend/.vite/
 Thumbs.db
 
 # 训练产物
-strategies/q-learning/q_table.pkl
-strategies/ppo/ppo_model.pth
+*.pth.tar
+models/
+logs/
+temp/
 
 # Logs
 *.log

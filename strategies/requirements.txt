@@ -1,4 +1,5 @@
 # 五子棋策略依赖
-#   增强型 Alpha-Beta 策略（替代原 PPO）：仅需 numpy
-#   Q-Learning 策略：仅需 numpy
+#   AlphaZero 深度学习策略：需要 PyTorch + Gymnasium
 numpy>=1.24.0
+torch>=2.0.0
+gymnasium>=1.0.0

@@ -10,10 +10,10 @@
 |------|------|------|------|
 | **启发式规则 (Heuristic)** | 传统棋型评分 | Go | Go 原生 |
 | **蒙特卡洛树搜索 (MCTS)** | 树搜索 + 启发式引导 | Go | Go 原生 |
-| **Q-Learning** | 经典强化学习 | Python | Go 子进程桥接 |
-| **PPO (Actor-Critic)** | 现代强化学习 | Python | Go 子进程桥接 |
+| **Alpha-Beta** | 博弈树搜索 | Go | Go 原生 |
+| **AlphaZero** | 深度强化学习 | Go + Python | Go 持久子进程 |
 
-> Python 策略通过 `python_bridge.py` 子进程桥接接入 Go server，stdin/stdout JSON 协议通信。
+> AlphaZero 策略通过 Go 端 `alphazero.go` 管理持久 Python 子进程管道通信；`python_bridge.py` 提供独立 CLI 调用备用入口。
 
 ## 项目结构
 
@@ -25,8 +25,10 @@ GomokuMind/
 ├── strategies/            # 策略实现
 │   ├── heuristic/         # 策略1: 启发式规则 (Go)
 │   ├── mcts/              # 策略2: 蒙特卡洛树搜索 (Go)
-│   ├── q-learning/        # 策略3: Q-Learning (Python)
-│   ├── ppo/               # 策略4: PPO Actor-Critic (Python)
+│   ├── alphabeta/         # 策略3: Alpha-Beta 搜索 (Go)
+│   ├── alphazero/         # 策略4: AlphaZero 深度学习 (Go + Python)
+│   │   ├── alphazero.go   # Go 策略包装器
+│   │   └── infer.py       # Python 持久推理服务
 │   ├── python_bridge.py   # Python 策略桥接层 (Go ↔ Python)
 │   ├── requirements.txt   # Python 依赖
 │   └── train.py           # 训练脚本入口
@@ -77,14 +79,10 @@ cd frontend && npm install
 ### 训练策略
 
 ```bash
-# 训练所有策略
-python strategies/train.py --strategy all --episodes 1000
-
-# 仅训练 Q-Learning
-python strategies/train.py --strategy q-learning --episodes 1000
-
-# 仅训练 PPO
-python strategies/train.py --strategy ppo --episodes 500
+# 训练 AlphaZero 模型（深度强化学习）
+python alphazero_train.py                     # 从头训练
+python alphazero_train.py --resume best       # 从最优 checkpoint 恢复
+python alphazero_train.py --iters 500 --eps 200 --sims 400
 ```
 
 ### 运行对战评估 (CLI)
