@@ -1,0 +1,307 @@
+/* ============================================
+   RecordsView — 对局记录页面样式
+   复用主题 CSS 变量，自动适配 4 套主题
+   ============================================ */
+
+.records-view {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 20px 24px 40px;
+  font-family: var(--font-main);
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.records-view.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---- Header ---- */
+.records-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.records-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.records-back-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: var(--font-main);
+  cursor: pointer;
+  transition: all var(--transition);
+  backdrop-filter: blur(8px);
+}
+
+.records-back-btn:hover {
+  background: var(--accent-glass);
+  border-color: var(--accent);
+}
+
+/* ---- Loading / Error ---- */
+.records-loading {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.records-error {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.records-error p {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* ---- Stats Cards ---- */
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 18px 12px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px var(--glow);
+}
+
+.stat-number {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--text-heading);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.stat-pct {
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.stat-black .stat-number { color: #3A3A3A; }
+.stat-white .stat-number { color: #8A8A8A; }
+.stat-draw .stat-number { color: var(--text-muted); }
+
+/* ---- Section ---- */
+.records-section {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.records-section h3 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+/* ---- Bar Chart ---- */
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar-label {
+  width: 80px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.bar-track {
+  flex: 1;
+  height: 22px;
+  background: var(--accent-glass);
+  border-radius: 11px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 11px;
+  transition: width 0.6s var(--transition);
+  min-width: 0;
+}
+
+.bar-value {
+  width: 44px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  text-align: left;
+}
+
+.bar-detail {
+  width: 100px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ---- Records Table ---- */
+.records-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  padding: 20px 0;
+}
+
+.records-table-wrap {
+  overflow-x: auto;
+}
+
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.records-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--divider, var(--border-subtle));
+}
+
+.records-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--divider, var(--border-subtle));
+  color: var(--text);
+}
+
+.records-table tbody tr {
+  transition: background var(--transition);
+}
+
+.records-table tbody tr:hover {
+  background: var(--accent-glass);
+}
+
+.col-time {
+  white-space: nowrap;
+  color: var(--text-muted) !important;
+  font-size: 0.85rem;
+}
+
+.col-moves {
+  text-align: center;
+  font-weight: 600;
+}
+
+/* ---- Result Badges ---- */
+.badge-win {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.badge-black {
+  background: rgba(40, 40, 40, 0.12);
+  color: #2A2A2A;
+}
+
+.badge-white {
+  background: rgba(160, 160, 160, 0.15);
+  color: #5A5A5A;
+}
+
+.badge-draw {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: var(--accent-glass);
+  color: var(--text-muted);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 720px) {
+  .stats-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .bar-item {
+    flex-wrap: wrap;
+  }
+  .bar-label {
+    width: 60px;
+    font-size: 0.8rem;
+  }
+  .bar-detail {
+    width: 100%;
+    margin-left: 72px;
+  }
+  .records-section {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .records-table th:nth-child(3),
+  .records-table td:nth-child(3),
+  .records-table th:nth-child(5),
+  .records-table td:nth-child(5) {
+    display: none;
+  }
+}

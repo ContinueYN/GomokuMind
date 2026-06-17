@@ -57,3 +57,34 @@ export interface MoveResponse {
   move: Move;
   game: Game;
 }
+
+// ===== 对局记录 =====
+
+export interface GameRecord {
+  id: string;
+  black_ai: string;
+  white_ai: string;
+  status: GameStatus;
+  winner: 'black' | 'white' | 'draw';
+  move_count: number;
+  created_at: string;
+  finished_at: string;
+}
+
+export interface AIStat {
+  ai_type: string;
+  total: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+}
+
+export interface StatsResponse {
+  total_games: number;
+  black_wins: number;
+  white_wins: number;
+  draws: number;
+  avg_moves: number;
+  by_ai: AIStat[];
+  recent_records: GameRecord[];
+}

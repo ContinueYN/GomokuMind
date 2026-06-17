@@ -39,6 +39,10 @@ models/
 logs/
 temp/
 
+# 对局记录（运行时生成，不纳入版本控制）
+records.json
+records.json.tmp
+
 # Logs
 *.log
 npm-debug.log*

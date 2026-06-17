@@ -12,7 +12,7 @@ interface GameControlProps {
 const AI_OPTIONS: { value: AIType; label: string; desc: string }[] = [
   { value: 'mcts', label: 'MCTS', desc: '蒙特卡洛树搜索' },
   { value: 'alphabeta', label: 'Alpha-Beta', desc: '博弈树搜索，最优平衡' },
-  { value: 'heuristic', label: '启发式', desc: '棋型评估，快速响应' },
+  { value: 'heuristic', label: 'heuristic', desc: '启发式搜索，快速响应' },
   { value: 'alphazero', label: 'AlphaZero', desc: '深度学习策略' },
 ];
 

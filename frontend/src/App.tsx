@@ -3,6 +3,7 @@ import Board from './components/Board';
 import GameControl from './components/GameControl';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import PoemDisplay from './components/PoemDisplay';
+import RecordsView from './components/RecordsView';
 import { gameApi } from './services/api';
 import { Game, GameConfig, CreateGameRequest, PlayerKind, AIType } from './types';
 import { ThemeKey, DEFAULT_THEME, THEMES, BOARD_THEMES } from './themes';
@@ -10,6 +11,8 @@ import './App.css';
 
 const AI_MOVE_DELAY = 1500; // AI vs AI 模式下的落子间隔 (ms)
 const AI_RESPONSE_DELAY = 500;  // PvE 模式下 AI 响应间隔 (ms)
+
+type ViewMode = 'game' | 'records';
 
 const App: React.FC = () => {
   // 存储完整的游戏状态：棋盘、当前玩家、历史记录、胜负等
@@ -28,9 +31,9 @@ const App: React.FC = () => {
   const [aiThinking, setAiThinking] = useState(false);
 
   // 托管开关：true时AI自动下棋，false时手动
-  const [autoPlay, setAutoPlay] = useState(false); 
-  
-  // AI代下策略类型：MCTS / Alpha-Beta / 启发式 / Q-Learning
+  const [autoPlay, setAutoPlay] = useState(false);
+
+  // AI代下策略类型：MCTS / Alpha-Beta / heuristic / AlphaZero
   const [hintAI, setHintAI] = useState<AIType>('mcts');
 
   // 当前主题
@@ -38,6 +41,9 @@ const App: React.FC = () => {
 
   // 存储定时器ID，用于清理
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 视图切换：game（对局）或 records（对局记录页）
+  const [view, setView] = useState<ViewMode>('game');
 
   // 对局结束弹窗：是否已被用户关闭
   const [gameOverDismissed, setGameOverDismissed] = useState(false);
@@ -55,6 +61,7 @@ const App: React.FC = () => {
     setError(null);
     setAutoPlay(false);
     setConfig(cfg);
+    setView('game'); // 切回对局视图
 
     const req: CreateGameRequest = {};
     if (cfg.blackKind !== 'human') req.black_ai = cfg.blackKind;
@@ -241,11 +248,21 @@ const App: React.FC = () => {
       <header className="app-header">
         <h1><img className="header-icon" src={themeInfo.icon} alt={themeInfo.name} /> GomokuMind</h1>
         <p className="subtitle">15×15 五子棋AI对战平台</p>
-        <ThemeSwitcher current={theme} onChange={setTheme} />
+        <div className="header-actions">
+          <button
+            className={`btn-records ${view === 'records' ? 'active' : ''}`}
+            onClick={() => setView(v => v === 'records' ? 'game' : 'records')}
+          >
+            {view === 'records' ? '← 返回对局' : '对局记录'}
+          </button>
+          <ThemeSwitcher current={theme} onChange={setTheme} />
+        </div>
       </header>
 
       <main className="app-main">
-        {!game ? (
+        {view === 'records' ? (
+          <RecordsView onBack={() => setView('game')} />
+        ) : !game ? (
           <GameControl onCreateGame={createGame} loading={loading} />
         ) : (
           <div className="game-container">
@@ -294,7 +311,7 @@ const App: React.FC = () => {
                     >
                       <option value="mcts">MCTS</option>
                       <option value="alphabeta">Alpha-Beta</option>
-                      <option value="heuristic">启发式</option>
+                      <option value="heuristic">heuristic</option>
                       <option value="alphazero">AlphaZero</option>
                     </select>
                     <button

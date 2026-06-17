@@ -104,6 +104,9 @@ var store = &GameStore{
 	infos: make(map[string]*Game),
 }
 
+// recordStore 持久化对局胜负记录（JSON 文件存储）
+var recordStore *RecordStore
+
 // 自增 ID 需要专用锁，避免与 store 锁竞争
 var idCounter int
 var idMu sync.Mutex
@@ -313,7 +316,24 @@ func makeMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	updated.CreatedAt = info.CreatedAt
 	updated.UpdatedAt = time.Now().Format(time.RFC3339)
 	info.UpdatedAt = updated.UpdatedAt
+
+	// 游戏结束时持久化记录
+	gameEnded := eng.GameOver
+	blackAI, whiteAI, winner, moveCount := info.BlackAI, info.WhiteAI, eng.Winner, len(eng.MoveHistory)
 	store.mu.Unlock()
+
+	if gameEnded && recordStore != nil {
+		recordStore.Add(GameRecord{
+			ID:         id,
+			BlackAI:    aiLabel(blackAI),
+			WhiteAI:    aiLabel(whiteAI),
+			Status:     string(winnerToStatus(winner)),
+			Winner:     winnerLabel(winner),
+			MoveCount:  moveCount,
+			CreatedAt:  info.CreatedAt,
+			FinishedAt: time.Now().Format(time.RFC3339),
+		})
+	}
 
 	writeJSON(w, http.StatusOK, GameResponse{Game: updated})
 }
@@ -378,7 +398,24 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	updated.CreatedAt = info.CreatedAt
 	updated.UpdatedAt = time.Now().Format(time.RFC3339)
 	info.UpdatedAt = updated.UpdatedAt
+
+	// 游戏结束时持久化记录
+	gameEnded := eng.GameOver
+	blackAI, whiteAI, winner, moveCount := info.BlackAI, info.WhiteAI, eng.Winner, len(eng.MoveHistory)
 	store.mu.Unlock()
+
+	if gameEnded && recordStore != nil {
+		recordStore.Add(GameRecord{
+			ID:         id,
+			BlackAI:    aiLabel(blackAI),
+			WhiteAI:    aiLabel(whiteAI),
+			Status:     string(winnerToStatus(winner)),
+			Winner:     winnerLabel(winner),
+			MoveCount:  moveCount,
+			CreatedAt:  info.CreatedAt,
+			FinishedAt: time.Now().Format(time.RFC3339),
+		})
+	}
 
 	writeJSON(w, http.StatusOK, MoveResponse{
 		Move: Move{Row: move.Row, Col: move.Col},
@@ -413,6 +450,39 @@ func deleteGameHandler(w http.ResponseWriter, _ *http.Request, id string) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
+// recordsHandler 返回对局历史记录，支持 ?limit=N（默认 50，最大 200）
+func recordsHandler(w http.ResponseWriter, r *http.Request) {
+	if recordStore == nil {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"records": []GameRecord{}})
+		return
+	}
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := fmt.Sscanf(l, "%d", &limit); err == nil && n == 1 {
+			if limit < 1 {
+				limit = 1
+			}
+			if limit > 200 {
+				limit = 200
+			}
+		}
+	}
+	all := recordStore.Records()
+	if limit > len(all) {
+		limit = len(all)
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"records": all[:limit]})
+}
+
+// statsHandler 返回聚合统计 + 最近对局记录
+func statsHandler(w http.ResponseWriter, _ *http.Request) {
+	if recordStore == nil {
+		writeJSON(w, http.StatusOK, StatsResponse{})
+		return
+	}
+	writeJSON(w, http.StatusOK, recordStore.Stats())
+}
+
 // ============================================================
 //  路由 — 基于路径和方法的简单分发
 // ============================================================
@@ -436,6 +506,14 @@ func router(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case path == "/health":
 		healthHandler(w, r)
+
+	// GET /api/stats — 对局统计
+	case path == "/stats" && r.Method == "GET":
+		statsHandler(w, r)
+
+	// GET /api/records — 对局历史
+	case path == "/records" && r.Method == "GET":
+		recordsHandler(w, r)
 
 	// POST /api/gomoku — 创建游戏
 	case path == "/gomoku" && r.Method == "POST":
@@ -473,7 +551,7 @@ func router(w http.ResponseWriter, r *http.Request) {
 // main 启动 HTTP 服务器监听 8080 端口
 func main() {
 	// 初始化 AlphaZero 策略（持久 Python 推理进程）
-	modelPath := filepath.Join("strategies", "alphazero", "best.pth.tar")
+	modelPath := filepath.Join("strategies", "alphazero", "checkpoint_11.pth.tar")
 	var err error
 	azStrategy, err = alphazero.NewAlphaZeroStrategy(modelPath)
 	if err != nil {
@@ -482,6 +560,15 @@ func main() {
 	} else {
 		defer azStrategy.Close()
 		log.Println("AlphaZero strategy initialized successfully.")
+	}
+
+	// 初始化对局记录存储（JSON 文件持久化）
+	recordStore, err = NewRecordStore(filepath.Join(".", "records.json"))
+	if err != nil {
+		log.Printf("WARNING: RecordStore failed to initialize: %v", err)
+		log.Println("Game records will not be persisted.")
+	} else {
+		log.Printf("RecordStore ready, %d historical records loaded.", len(recordStore.Stats().RecentRecords))
 	}
 
 	addr := ":8080"

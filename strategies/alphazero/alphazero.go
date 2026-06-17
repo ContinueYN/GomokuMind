@@ -44,11 +44,13 @@ type readyResponse struct {
 
 // NewAlphaZeroStrategy 创建策略实例并启动 Python 推理进程。
 func NewAlphaZeroStrategy(modelPath string) (*AlphaZeroStrategy, error) {
-	execDir, err := os.Getwd()
+	// Resolve infer.py relative to the executable (server.exe lives at project root).
+	execPath, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("get working dir: %w", err)
+		return nil, fmt.Errorf("get executable path: %w", err)
 	}
-	pyScript := filepath.Join(execDir, "strategies", "alphazero", "infer.py")
+	projectRoot := filepath.Dir(execPath) // server.exe is at project root
+	pyScript := filepath.Join(projectRoot, "strategies", "alphazero", "infer.py")
 
 	absModelPath, err := filepath.Abs(modelPath)
 	if err != nil {

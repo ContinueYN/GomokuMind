@@ -1,4 +1,4 @@
-import { Game, CreateGameRequest, MoveRequest, GameResponse, MoveResponse, AIType } from '../types';
+import { Game, CreateGameRequest, MoveRequest, GameResponse, MoveResponse, AIType, StatsResponse, GameRecord } from '../types';
 
 // API 基础路径：优先使用环境变量，否则走 Vite 代理前缀 /api
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -71,4 +71,12 @@ export const gameApi = {
   // 健康检查：确认服务器是否在线
   healthCheck: () =>
     request<{ status: string }>('/health'),
+
+  // 对局统计：总局数、胜率、AI 排行
+  getStats: () =>
+    request<StatsResponse>('/stats'),
+
+  // 对局历史记录，支持 ?limit=N（默认 50）
+  getRecords: (limit?: number) =>
+    request<{ records: GameRecord[] }>(`/records${limit ? `?limit=${limit}` : ''}`),
 };

@@ -221,6 +221,41 @@ body {
   100% { opacity: 1; transform: translateY(0); }
 }
 
+/* ---------- 头部按钮行 ---------- */
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.btn-records {
+  padding: 6px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: var(--font-main);
+  cursor: pointer;
+  transition: all var(--transition);
+  backdrop-filter: blur(6px);
+}
+
+.btn-records:hover {
+  background: var(--accent-glass);
+  border-color: var(--accent);
+}
+
+.btn-records.active {
+  background: var(--accent-glass);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* ---------- 主区域 ---------- */
 .app-main {
   max-width: 960px;

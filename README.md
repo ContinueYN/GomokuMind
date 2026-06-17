@@ -32,8 +32,6 @@ GomokuMind/
 │   ├── python_bridge.py   # Python 策略桥接层 (Go ↔ Python)
 │   ├── requirements.txt   # Python 依赖
 │   └── train.py           # 训练脚本入口
-├── evaluation/            # 对战评估模块 (CLI)
-│   └── main.go            # 策略间对战、胜率统计
 ├── server/                # HTTP API 服务
 │   └── main.go            # RESTful 接口，端口 8080
 ├── frontend/              # 前端可视化界面 (React + TypeScript + Vite)
@@ -85,12 +83,6 @@ python alphazero_train.py --resume best       # 从最优 checkpoint 恢复
 python alphazero_train.py --iters 500 --eps 200 --sims 400
 ```
 
-### 运行对战评估 (CLI)
-
-```bash
-go run ./evaluation
-```
-
 ### 启动后端服务
 
 ```bash
@@ -108,6 +100,8 @@ go run ./server
 | PUT | `/api/gomoku/:id` | 玩家落子 `{"row":7,"col":7}` |
 | POST | `/api/gomoku/:id/ai-move` | AI 自动落子 |
 | DELETE | `/api/gomoku/:id` | 删除游戏 |
+| GET | `/api/stats` | 对局统计（总局数、胜率、AI 排行） |
+| GET | `/api/records?limit=50` | 对局历史记录 |
 
 ### 启动前端
 
@@ -161,19 +155,19 @@ cd frontend && npm run dev
 **优势**：无需训练数据，响应快（5000 次模拟 < 3ms）
 **劣势**：单层搜索，深度有限
 
-### 3. Q-Learning
+### 3. Alpha-Beta 博弈树搜索
 
-经典强化学习算法，通过 Q 表学习状态-动作值函数。Go server 通过子进程调用 Python 桥接层通信。
+迭代加深 + 11 种棋型精确识别 + 杀手启发式 + 走法排序，depth=4 中盘约 30ms。
 
-**优势**：算法简单，RL 入门经典
-**劣势**：状态空间大时收敛困难，需先训练
+**优势**：精确搜索，响应快，中盘深度可观
+**劣势**：依赖棋型评估函数质量
 
-### 4. PPO (Actor-Critic)
+### 4. AlphaZero 深度强化学习
 
-现代强化学习算法，使用卷积神经网络提取棋盘特征。Go server 通过子进程调用 Python 桥接层通信。
+基于 ResNet 的 Policy-Value 网络 + MCTS，自对弈训练。Go 端通过持久 Python 子进程管道通信。
 
-**优势**：主流架构，适应性强
-**劣势**：需要 GPU 训练，训练时间长
+**优势**：自我进化，无需人类知识，棋力随训练增强
+**劣势**：需要 GPU 训练，推理需 Python 进程
 
 ## 技术栈
 
@@ -182,9 +176,8 @@ cd frontend && npm run dev
 | 游戏引擎 | Go | 标准库 |
 | 启发式策略 | Go | 标准库 |
 | MCTS | Go | 标准库 |
-| Q-Learning | Python | NumPy |
-| PPO | Python | PyTorch |
-| Python 桥接 | Python | 标准库 (stdin/stdout JSON) |
+| Alpha-Beta | Go | 标准库 |
+| AlphaZero | Go + Python | PyTorch |
 | 前端界面 | TypeScript | React + Vite |
 
 ## 许可证
