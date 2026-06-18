@@ -64,7 +64,7 @@ func NewRecordStore(filePath string) (*RecordStore, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Printf("[RecordStore] No existing records file at %s, starting fresh.", filePath)
+			log.Printf("[RecordStore] 未找到对局记录文件 (%s)，从零开始", filePath)
 			return rs, nil
 		}
 		return nil, fmt.Errorf("read records file: %w", err)
@@ -76,7 +76,7 @@ func NewRecordStore(filePath string) (*RecordStore, error) {
 		}
 	}
 
-	log.Printf("[RecordStore] Loaded %d records from %s", len(rs.records), filePath)
+	log.Printf("[RecordStore] 已从 %s 加载 %d 条记录", filePath, len(rs.records))
 	return rs, nil
 }
 
@@ -90,7 +90,7 @@ func (rs *RecordStore) Add(record GameRecord) error {
 		return fmt.Errorf("save records: %w", err)
 	}
 
-	log.Printf("[RecordStore] Saved record %s: %s vs %s → %s (%d moves)",
+	log.Printf("[RecordStore] 已保存对局 %s: %s vs %s → %s (%d 步)",
 		record.ID, record.BlackAI, record.WhiteAI, record.Winner, record.MoveCount)
 	return nil
 }

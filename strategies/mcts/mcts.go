@@ -111,8 +111,6 @@ func NewMCTSStrategy(simulations int) *MCTSStrategy {
 }
 
 func (m *MCTSStrategy) Name() string             { return "蒙特卡洛树搜索(MCTS)" }
-func (m *MCTSStrategy) Train(episodes int) error { return nil }
-
 // ============================================================
 //  四个方向
 // ============================================================
@@ -193,7 +191,7 @@ func (m *MCTSStrategy) GetMove(
 			switch boardInt[i][j] {
 			case 1:
 				rootBoard[i][j] = game_engine.Black
-			case -1:
+			case 2:
 				rootBoard[i][j] = game_engine.White
 			}
 		}
@@ -201,7 +199,7 @@ func (m *MCTSStrategy) GetMove(
 
 	self := game_engine.Black
 	opp := game_engine.White
-	if player == -1 {
+	if player == 2 {
 		self, opp = opp, self
 	}
 

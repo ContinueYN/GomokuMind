@@ -355,7 +355,7 @@ class MCTS:
             if s_sum > 0:
                 self.Ps[s] /= s_sum
             else:
-                log.error("All valid moves masked.")
+                log.error("所有合法走法被屏蔽")
                 self.Ps[s] = self.Ps[s] + valids
                 self.Ps[s] /= np.sum(self.Ps[s])
             self.Vs[s] = valids
@@ -456,7 +456,7 @@ class Arena:
             action = players[curPlayer + 1](canonical)
             valids = self.game.getValidMoves(canonical, 1)
             if valids[action] == 0:
-                log.error(f'Action {action} is not valid!')
+                log.error(f'走法 {action} 无效！')
                 assert valids[action] > 0
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
 
@@ -574,7 +574,7 @@ class Coach:
 
         train_loss = self.nnet.train(trainExamples)
 
-        log.info('PITTING AGAINST PREVIOUS VERSION')
+        log.info('与上一版本对弈中...')
 
         new_state = {k: v.cpu().clone() for k, v in self.nnet.nnet.state_dict().items()}
         old_state = {k: v.cpu().clone() for k, v in self.pnet.nnet.state_dict().items()}
@@ -608,7 +608,7 @@ class Coach:
 
         win_rate = float(nwins) / (pwins + nwins) if pwins + nwins > 0 else 0.5
 
-        log.info(f'NEW/PREV WINS : {nwins} / {pwins} ; DRAWS : {draws}')
+        log.info(f'新版/旧版 胜场: {nwins} / {pwins} ; 平局: {draws}')
 
         self.writer.add_scalar('Train/Loss', train_loss, i)
         self.writer.add_scalar('Arena/NewWins', nwins, i)
@@ -618,11 +618,11 @@ class Coach:
         self.writer.add_scalar('Train/ExamplesCount', len(trainExamples), i)
 
         if pwins + nwins == 0 or win_rate < self.args.updateThreshold:
-            log.info('REJECTING NEW MODEL')
+            log.info('拒绝新模型')
             self.nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp.pth.tar')
             self.writer.add_scalar('Arena/Accepted', 0, i)
         else:
-            log.info('ACCEPTING NEW MODEL')
+            log.info('接受新模型')
             self.nnet.save_checkpoint(folder=self.args.checkpoint, filename=f'checkpoint_{i}.pth.tar')
             self.nnet.save_checkpoint(folder=self.args.checkpoint, filename='best.pth.tar')
             self.writer.add_scalar('Arena/Accepted', 1, i)
@@ -632,7 +632,7 @@ class Coach:
             self.nnet.optimizer, T_max=self.args.numIters, eta_min=NET_ARGS.lr * 0.1)
 
         for i in range(1, self.args.numIters + 1):
-            log.info(f'Starting Iter #{i} ...')
+            log.info(f'开始第 {i} 轮迭代 ...')
 
             if not self.skipFirstSelfPlay or i > 1:
                 if self.args.num_workers > 1:
@@ -641,7 +641,7 @@ class Coach:
                     self.trainExamplesHistory.append(self._self_play_sequential())
 
             if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
-                log.warning("Removing oldest trainExamples entry.")
+                log.warning("移除最早的训练样本")
                 self.trainExamplesHistory.pop(0)
 
             self.saveTrainExamples(i - 1)
@@ -667,12 +667,12 @@ class Coach:
         modelFile = os.path.join(self.args.load_folder_file[0], self.args.load_folder_file[1])
         examplesFile = modelFile + ".examples"
         if not os.path.isfile(examplesFile):
-            log.warning(f'Examples file "{examplesFile}" not found!')
+            log.warning(f'训练样本文件 "{examplesFile}" 未找到！')
         else:
-            log.info("Loading trainExamples from file...")
+            log.info("从文件加载训练样本...")
             with open(examplesFile, "rb") as f:
                 self.trainExamplesHistory = Unpickler(f).load()
-            log.info('Loading done!')
+            log.info('加载完成！')
             self.skipFirstSelfPlay = True
 
 
@@ -790,7 +790,7 @@ def setup_file_logging():
     ))
     logging.getLogger(__name__).addHandler(file_handler)
 
-    log.info(f'Logging to {log_path}')
+    log.info(f'日志输出至 {log_path}')
     return log_path
 
 
@@ -819,10 +819,10 @@ def main():
     if opts.workers is not None:
         args['num_workers'] = opts.workers
 
-    log.info('Loading Gomoku game (15x15, 5-in-a-row)...')
+    log.info('加载五子棋游戏 (15×15, 五连获胜)...')
     game = GomokuGame(rows=15, cols=15, connect=5)
 
-    log.info('Loading PyTorch neural network...')
+    log.info('加载 PyTorch 神经网络...')
     nnet = NNetWrapper(game)
 
     if opts.resume:
@@ -831,33 +831,33 @@ def main():
             checkpoint_name = f'{checkpoint_name}.pth.tar'
         checkpoint_path = os.path.join(CHECKPOINT_DIR, checkpoint_name)
         if os.path.exists(checkpoint_path):
-            log.info(f'Loading checkpoint from {checkpoint_path}')
+            log.info(f'从 {checkpoint_path} 加载模型检查点')
             nnet.load_checkpoint(filename=checkpoint_path)
             args['load_model'] = True
             args['load_folder_file'] = (CHECKPOINT_DIR, checkpoint_name)
         else:
-            log.error(f'Checkpoint not found: {checkpoint_path}')
+            log.error(f'模型检查点未找到: {checkpoint_path}')
             sys.exit(1)
     else:
-        log.warning('Not loading a checkpoint — training from scratch.')
+        log.warning('未加载检查点 — 从头开始训练')
 
     os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
-    log.info(f'Models saved to {CHECKPOINT_DIR}')
-    log.info(f'Logs saved to {log_path}')
+    log.info(f'模型保存至 {CHECKPOINT_DIR}')
+    log.info(f'日志保存至 {log_path}')
     log.info(f'TensorBoard: tensorboard --logdir {TB_DIR}')
-    log.info(f'Config: numIters={args.numIters}, numEps={args.numEps}, '
+    log.info(f'配置: numIters={args.numIters}, numEps={args.numEps}, '
              f'numMCTSSims={args.numMCTSSims}, arenaCompare={args.arenaCompare}, '
              f'workers={args.num_workers}')
 
-    log.info('Starting Coach...')
+    log.info('启动训练管理器...')
     coach = Coach(game, nnet, args)
 
     if args.load_model:
-        log.info("Loading trainExamples from file...")
+        log.info("从文件加载训练样本...")
         coach.loadTrainExamples()
 
-    log.info('Starting AlphaZero training loop')
+    log.info('开始 AlphaZero 训练循环')
     coach.learn()
 
 

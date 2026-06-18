@@ -47,14 +47,14 @@ func NewAlphaZeroStrategy(modelPath string) (*AlphaZeroStrategy, error) {
 	// Resolve infer.py relative to the executable (server.exe lives at project root).
 	execPath, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("get executable path: %w", err)
+		return nil, fmt.Errorf("获取可执行文件路径失败: %w", err)
 	}
 	projectRoot := filepath.Dir(execPath) // server.exe is at project root
 	pyScript := filepath.Join(projectRoot, "strategies", "alphazero", "infer.py")
 
 	absModelPath, err := filepath.Abs(modelPath)
 	if err != nil {
-		return nil, fmt.Errorf("resolve model path: %w", err)
+		return nil, fmt.Errorf("解析模型路径失败: %w", err)
 	}
 
 	cmd := exec.Command("python", pyScript, absModelPath)
@@ -62,19 +62,19 @@ func NewAlphaZeroStrategy(modelPath string) (*AlphaZeroStrategy, error) {
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, fmt.Errorf("create stdin pipe: %w", err)
+		return nil, fmt.Errorf("创建 stdin 管道失败: %w", err)
 	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		stdin.Close()
-		return nil, fmt.Errorf("create stdout pipe: %w", err)
+		return nil, fmt.Errorf("创建 stdout 管道失败: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
 		stdin.Close()
 		stdout.Close()
-		return nil, fmt.Errorf("start python process: %w", err)
+		return nil, fmt.Errorf("启动 Python 进程失败: %w", err)
 	}
 
 	s := &AlphaZeroStrategy{
@@ -87,20 +87,20 @@ func NewAlphaZeroStrategy(modelPath string) (*AlphaZeroStrategy, error) {
 	go func() {
 		line, err := s.stdout.ReadString('\n')
 		if err != nil {
-			readyCh <- fmt.Errorf("read ready signal: %w", err)
+			readyCh <- fmt.Errorf("读取就绪信号失败: %w", err)
 			return
 		}
 		var rr readyResponse
 		if err := json.Unmarshal([]byte(line), &rr); err != nil {
-			readyCh <- fmt.Errorf("parse ready signal: %w (got: %s)", err, line)
+			readyCh <- fmt.Errorf("解析就绪信号失败: %w (原始数据: %s)", err, line)
 			return
 		}
 		if rr.Error != "" {
-			readyCh <- fmt.Errorf("python init error: %s", rr.Error)
+			readyCh <- fmt.Errorf("Python 初始化错误: %s", rr.Error)
 			return
 		}
 		if rr.Status != "ready" {
-			readyCh <- fmt.Errorf("unexpected ready status: %s", rr.Status)
+			readyCh <- fmt.Errorf("意外的就绪状态: %s", rr.Status)
 			return
 		}
 		readyCh <- nil
@@ -114,10 +114,10 @@ func NewAlphaZeroStrategy(modelPath string) (*AlphaZeroStrategy, error) {
 		}
 	case <-time.After(60 * time.Second):
 		s.Close()
-		return nil, fmt.Errorf("timeout waiting for python inference server")
+		return nil, fmt.Errorf("等待 Python 推理服务超时")
 	}
 
-	log.Printf("[AlphaZero] Inference server ready, model: %s", absModelPath)
+	log.Printf("[AlphaZero] 推理服务就绪，模型: %s", absModelPath)
 	return s, nil
 }
 
@@ -137,37 +137,33 @@ func (s *AlphaZeroStrategy) GetMove(board [game_engine.BoardSize][game_engine.Bo
 	req := inferRequest{Board: board2D, Player: player}
 	reqJSON, err := json.Marshal(req)
 	if err != nil {
-		log.Printf("[AlphaZero] marshal request: %v", err)
+		log.Printf("[AlphaZero] 请求序列化失败: %v", err)
 		return game_engine.Move{Row: 7, Col: 7}
 	}
 
 	if _, err := fmt.Fprintf(s.stdin, "%s\n", reqJSON); err != nil {
-		log.Printf("[AlphaZero] write request: %v", err)
+		log.Printf("[AlphaZero] 写入请求失败: %v", err)
 		return game_engine.Move{Row: 7, Col: 7}
 	}
 
 	line, err := s.stdout.ReadString('\n')
 	if err != nil {
-		log.Printf("[AlphaZero] read response: %v", err)
+		log.Printf("[AlphaZero] 读取响应失败: %v", err)
 		return game_engine.Move{Row: 7, Col: 7}
 	}
 
 	var resp inferResponse
 	if err := json.Unmarshal([]byte(line), &resp); err != nil {
-		log.Printf("[AlphaZero] parse response: %v (raw: %s)", err, line)
+		log.Printf("[AlphaZero] 解析响应失败: %v (原始数据: %s)", err, line)
 		return game_engine.Move{Row: 7, Col: 7}
 	}
 
 	if resp.Error != "" {
-		log.Printf("[AlphaZero] inference error: %s", resp.Error)
+		log.Printf("[AlphaZero] 推理错误: %s", resp.Error)
 		return game_engine.Move{Row: 7, Col: 7}
 	}
 
 	return game_engine.Move{Row: resp.Row, Col: resp.Col}
-}
-
-func (s *AlphaZeroStrategy) Train(episodes int) error {
-	return nil
 }
 
 func (s *AlphaZeroStrategy) Close() {
@@ -179,5 +175,5 @@ func (s *AlphaZeroStrategy) Close() {
 		s.cmd.Process.Kill()
 		s.cmd.Wait()
 	}
-	log.Println("[AlphaZero] Inference server closed.")
+	log.Println("[AlphaZero] 推理服务已关闭")
 }

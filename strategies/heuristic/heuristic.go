@@ -101,10 +101,6 @@ func (h *HeuristicStrategy) Name() string {
 	return "启发式规则"
 }
 
-func (h *HeuristicStrategy) Train(episodes int) error {
-	return nil
-}
-
 // ============================================================
 //  GetMove — 主入口：两轮评估选出最优落子
 // ============================================================
@@ -139,7 +135,10 @@ func (h *HeuristicStrategy) GetMove(
 		return game_engine.Move{Row: 7, Col: 7}
 	}
 
-	opp := -player
+	opp := 2
+	if player == 2 {
+		opp = 1
+	}
 
 	// ---- 第一轮扫描：检查是否有必胜 / 必防位置 ----
 	type eval struct {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -107,6 +108,17 @@ var store = &GameStore{
 // recordStore 持久化对局胜负记录（JSON 文件存储）
 var recordStore *RecordStore
 
+// staticFS 生产模式下的前端静态文件服务；nil 表示开发模式（由 Vite 代理）
+var staticFS http.Handler
+
+// initStatic 若 frontend/dist 目录存在，则注册静态文件服务
+func initStatic() {
+	if _, err := os.Stat(filepath.Join("frontend", "dist", "index.html")); err == nil {
+		staticFS = http.FileServer(http.Dir(filepath.Join("frontend", "dist")))
+		log.Println("前端静态文件服务已启用 (frontend/dist)")
+	}
+}
+
 // 自增 ID 需要专用锁，避免与 store 锁竞争
 var idCounter int
 var idMu sync.Mutex
@@ -130,13 +142,14 @@ var azStrategy *alphazero.AlphaZeroStrategy
 func getStrategy(aiType string) game_engine.Strategy {
 	switch AIType(aiType) {
 	case AIMCTS:
-		return mcts.NewMCTSStrategy(400)
+		return mcts.NewMCTSStrategy(500)
 	case AIAlphaBeta:
 		return alphabeta.NewAlphaBetaStrategy(4)
 	case AIAlphaZero:
 		if azStrategy != nil {
 			return azStrategy
 		}
+		// 调用失败的话，降级成启发式策略
 		return heuristic.NewHeuristicStrategy()
 	default:
 		return heuristic.NewHeuristicStrategy()
@@ -181,7 +194,7 @@ func engineToGame(id string, eng *game_engine.GameEngine, blackAI, whiteAI strin
 		status = winnerToStatus(eng.Winner)
 	}
 
-	// 落子历史转换
+	// 落子历史转换 engine 的 []Move → server 的 []Move
 	history := make([]Move, len(eng.MoveHistory))
 	for i, m := range eng.MoveHistory {
 		history[i] = Move{Row: m.Row, Col: m.Col}
@@ -229,7 +242,7 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 func createGameHandler(w http.ResponseWriter, r *http.Request) {
 	var req CreateGameRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeError(w, http.StatusBadRequest, "无效的请求体")
 		return
 	}
 
@@ -269,7 +282,7 @@ func getGameHandler(w http.ResponseWriter, _ *http.Request, id string) {
 	store.mu.RUnlock()
 
 	if !ok || !infoOk {
-		writeError(w, http.StatusNotFound, "game not found")
+		writeError(w, http.StatusNotFound, "游戏不存在")
 		return
 	}
 
@@ -285,7 +298,7 @@ func getGameHandler(w http.ResponseWriter, _ *http.Request, id string) {
 func makeMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	var req MoveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeError(w, http.StatusBadRequest, "无效的请求体")
 		return
 	}
 
@@ -294,13 +307,13 @@ func makeMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	info, infoOk := store.infos[id]
 	if !ok || !infoOk {
 		store.mu.Unlock()
-		writeError(w, http.StatusNotFound, "game not found")
+		writeError(w, http.StatusNotFound, "游戏不存在")
 		return
 	}
 
 	if eng.GameOver {
 		store.mu.Unlock()
-		writeError(w, http.StatusBadRequest, "game is over")
+		writeError(w, http.StatusBadRequest, "对局已结束")
 		return
 	}
 
@@ -349,13 +362,13 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 	info, infoOk := store.infos[id]
 	if !ok || !infoOk {
 		store.mu.Unlock()
-		writeError(w, http.StatusNotFound, "game not found")
+		writeError(w, http.StatusNotFound, "游戏不存在")
 		return
 	}
 
 	if eng.GameOver {
 		store.mu.Unlock()
-		writeError(w, http.StatusBadRequest, "game is over")
+		writeError(w, http.StatusBadRequest, "对局已结束")
 		return
 	}
 
@@ -378,15 +391,12 @@ func aiMoveHandler(w http.ResponseWriter, r *http.Request, id string) {
 
 	// 统一使用 Go 策略接口（heuristic / mcts / alphabeta / alphazero）
 	strategy := getStrategy(aiType)
-	boardState := eng.GetBoardState() // 1=黑 -1=白 0=空
+	boardState := eng.GetBoardState() // 1=黑 2=白 0=空
 
-	// engine 的 CurrentTurn 转为策略接口期望的 player 值
-	p := 1 // 黑棋
-	if eng.CurrentTurn == game_engine.White {
-		p = -1 // 白棋
-	}
+	// engine 的 CellState (Black=1, White=2) 与策略接口约定已统一
+	player := eng.GetCurrentPlayerInt()
 
-	move := strategy.GetMove(boardState, p)
+	move := strategy.GetMove(boardState, player)
 
 	if err := eng.MakeMove(move.Row, move.Col); err != nil {
 		store.mu.Unlock()
@@ -447,7 +457,7 @@ func deleteGameHandler(w http.ResponseWriter, _ *http.Request, id string) {
 	delete(store.infos, id)
 	store.mu.Unlock()
 
-	writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
+	writeJSON(w, http.StatusOK, map[string]string{"message": "已删除"})
 }
 
 // recordsHandler 返回对局历史记录，支持 ?limit=N（默认 50，最大 200）
@@ -500,52 +510,69 @@ func router(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 去掉 /api 前缀后匹配路由
-	path := strings.TrimPrefix(r.URL.Path, "/api")
+	// API 路由：以 /api 开头的请求走业务逻辑
+	if strings.HasPrefix(r.URL.Path, "/api") {
+		path := strings.TrimPrefix(r.URL.Path, "/api")
 
-	switch {
-	case path == "/health":
-		healthHandler(w, r)
+		switch {
+		case path == "/health":
+			healthHandler(w, r)
 
-	// GET /api/stats — 对局统计
-	case path == "/stats" && r.Method == "GET":
-		statsHandler(w, r)
+		// GET /api/stats — 对局统计
+		case path == "/stats" && r.Method == "GET":
+			statsHandler(w, r)
 
-	// GET /api/records — 对局历史
-	case path == "/records" && r.Method == "GET":
-		recordsHandler(w, r)
+		// GET /api/records — 对局历史
+		case path == "/records" && r.Method == "GET":
+			recordsHandler(w, r)
 
-	// POST /api/gomoku — 创建游戏
-	case path == "/gomoku" && r.Method == "POST":
-		createGameHandler(w, r)
+		// POST /api/gomoku — 创建游戏
+		case path == "/gomoku" && r.Method == "POST":
+			createGameHandler(w, r)
 
-	// GET /api/gomoku — 列出所有游戏
-	case path == "/gomoku" && r.Method == "GET":
-		listGamesHandler(w, r)
+		// GET /api/gomoku — 列出所有游戏
+		case path == "/gomoku" && r.Method == "GET":
+			listGamesHandler(w, r)
 
-	// POST /api/gomoku/:id/ai-move — AI 落子
-	case strings.HasPrefix(path, "/gomoku/") && strings.HasSuffix(path, "/ai-move") && r.Method == "POST":
-		id := strings.TrimSuffix(strings.TrimPrefix(path, "/gomoku/"), "/ai-move")
-		aiMoveHandler(w, r, id)
+		// POST /api/gomoku/:id/ai-move — AI 落子
+		case strings.HasPrefix(path, "/gomoku/") && strings.HasSuffix(path, "/ai-move") && r.Method == "POST":
+			id := strings.TrimSuffix(strings.TrimPrefix(path, "/gomoku/"), "/ai-move")
+			aiMoveHandler(w, r, id)
 
-	// PUT /api/gomoku/:id — 人类落子
-	case strings.HasPrefix(path, "/gomoku/") && r.Method == "PUT":
-		id := strings.TrimPrefix(path, "/gomoku/")
-		makeMoveHandler(w, r, id)
+		// PUT /api/gomoku/:id — 人类落子
+		case strings.HasPrefix(path, "/gomoku/") && r.Method == "PUT":
+			id := strings.TrimPrefix(path, "/gomoku/")
+			makeMoveHandler(w, r, id)
 
-	// DELETE /api/gomoku/:id — 删除游戏
-	case strings.HasPrefix(path, "/gomoku/") && r.Method == "DELETE":
-		id := strings.TrimPrefix(path, "/gomoku/")
-		deleteGameHandler(w, r, id)
+		// DELETE /api/gomoku/:id — 删除游戏
+		case strings.HasPrefix(path, "/gomoku/") && r.Method == "DELETE":
+			id := strings.TrimPrefix(path, "/gomoku/")
+			deleteGameHandler(w, r, id)
 
-	// GET /api/gomoku/:id — 获取游戏状态
-	case strings.HasPrefix(path, "/gomoku/") && r.Method == "GET":
-		id := strings.TrimPrefix(path, "/gomoku/")
-		getGameHandler(w, r, id)
+		// GET /api/gomoku/:id — 获取游戏状态
+		case strings.HasPrefix(path, "/gomoku/") && r.Method == "GET":
+			id := strings.TrimPrefix(path, "/gomoku/")
+			getGameHandler(w, r, id)
 
-	default:
-		writeError(w, http.StatusNotFound, "not found")
+		default:
+			writeError(w, http.StatusNotFound, "接口不存在")
+		}
+		return
 	}
+
+	// 非 API 路由 → 生产模式提供前端静态文件；开发模式返回 404
+	if staticFS != nil {
+		// SPA 回退：找不到文件 → 返回 index.html
+		filePath := filepath.Join("frontend", "dist", r.URL.Path)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			http.ServeFile(w, r, filepath.Join("frontend", "dist", "index.html"))
+			return
+		}
+		staticFS.ServeHTTP(w, r)
+		return
+	}
+
+	writeError(w, http.StatusNotFound, "页面不存在")
 }
 
 // main 启动 HTTP 服务器监听 8080 端口
@@ -555,23 +582,26 @@ func main() {
 	var err error
 	azStrategy, err = alphazero.NewAlphaZeroStrategy(modelPath)
 	if err != nil {
-		log.Printf("WARNING: AlphaZero strategy failed to initialize: %v", err)
-		log.Println("AlphaZero will not be available; falling back to heuristic.")
+		log.Printf("警告: AlphaZero 策略初始化失败: %v", err)
+		log.Println("AlphaZero 不可用，已降级为启发式策略")
 	} else {
 		defer azStrategy.Close()
-		log.Println("AlphaZero strategy initialized successfully.")
+		log.Println("AlphaZero 策略初始化成功")
 	}
 
 	// 初始化对局记录存储（JSON 文件持久化）
 	recordStore, err = NewRecordStore(filepath.Join(".", "records.json"))
 	if err != nil {
-		log.Printf("WARNING: RecordStore failed to initialize: %v", err)
-		log.Println("Game records will not be persisted.")
+		log.Printf("警告: 对局记录存储初始化失败: %v", err)
+		log.Println("对局记录将不会被持久化")
 	} else {
-		log.Printf("RecordStore ready, %d historical records loaded.", len(recordStore.Stats().RecentRecords))
+		log.Printf("对局记录存储就绪，已加载 %d 条历史记录", len(recordStore.Stats().RecentRecords))
 	}
 
+	// 生产模式：若 frontend/dist 存在则启用静态文件服务
+	initStatic()
+
 	addr := ":8080"
-	fmt.Printf("GomokuMind server starting on %s\n", addr)
+	fmt.Printf("GomokuMind 服务器启动，监听地址: %s\n", addr)
 	log.Fatal(http.ListenAndServe(addr, http.HandlerFunc(router)))
 }

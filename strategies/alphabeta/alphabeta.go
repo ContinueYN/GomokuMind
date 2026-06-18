@@ -96,9 +96,6 @@ func (a *AlphaBetaStrategy) Name() string {
 	return "Alpha-Beta 增强搜索"
 }
 
-func (a *AlphaBetaStrategy) Train(episodes int) error {
-	return nil
-}
 
 // ============================================================
 //  GetMove — 主入口
@@ -109,7 +106,7 @@ func (a *AlphaBetaStrategy) GetMove(
 	player int,
 ) game_engine.Move {
 
-	// 1. 棋盘格式转换（interface: 1/-1/0 → 内部: 1/2/0）
+	// 1. 棋盘格式转换（interface: 1/2/0 → 内部: 1/2/0，已统一无需转换）
 	var b boardIntl
 	turn := 1
 	for i := 0; i < boardSize; i++ {
@@ -117,12 +114,12 @@ func (a *AlphaBetaStrategy) GetMove(
 			switch boardInt[i][j] {
 			case 1:
 				b[i][j] = 1
-			case -1:
+			case 2:
 				b[i][j] = 2
 			}
 		}
 	}
-	if player == -1 {
+	if player == 2 {
 		turn = 2
 	}
 

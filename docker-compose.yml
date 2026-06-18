@@ -1,0 +1,24 @@
+# ============================================================
+#  GomokuMind Docker Compose
+# ============================================================
+#  启动: docker compose up -d
+#  停止: docker compose down
+#  默认只含纯 Go 策略 (heuristic/MCTS/AlphaBeta)
+# ============================================================
+
+services:
+  gomokumind:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gomokumind
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    # 可挂载持久化的对局记录文件
+    volumes:
+      - ./records.json:/app/records.json
+    # 如需 AlphaZero (需额外构建含 PyTorch 的镜像):
+    #   - 取消下方 Dockerfile alpha 注释
+    #   - 构建: docker compose build --build-arg ALPHAZERO=1
+    #   - 或使用单独的 Python 推理服务容器

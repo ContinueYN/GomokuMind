@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+frontend/node_modules
+frontend/.vite
+
+# Go build artifacts
+server.exe
+*.exe
+
+# Python
+__pycache__
+*.pyc
+.venv
+venv/
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Temp
+*.tmp
+*.log
+
+# Claude
+.claude
+CLAUDE.md

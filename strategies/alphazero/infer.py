@@ -10,7 +10,7 @@ AlphaZero 持久推理服务 — 由 Go 端通过 stdin/stdout 管道调用。
     输出:  {"row": 7, "col": 7}
 
     board: 15x15, 0=空 1=黑 2=白
-    player: 1=黑棋回合, -1=白棋回合
+    player: 1=黑棋回合, 2=白棋回合
 """
 
 import sys
@@ -40,8 +40,14 @@ CPUCT = 1.0
 
 
 def go_board_to_canonical(board: np.ndarray, player: int) -> np.ndarray:
+    """将 Go 格式棋盘 (0=空, 1=黑, 2=白) 转为 AlphaZero 规范形式。
+
+    AlphaZero 规范: 当前玩家棋子 → 1, 对手棋子 → -1.
+    player: 1=黑棋, 2=白棋
+    """
     b = np.asarray(board, dtype=np.int8)
-    az = np.where(b == 0, 0, np.where(b == 1, player, -player)).astype(np.int8)
+    mult = 1 if player == 1 else -1
+    az = np.where(b == 0, 0, np.where(b == 1, mult, -mult)).astype(np.int8)
     return az
 
 
