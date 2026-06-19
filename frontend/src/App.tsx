@@ -311,6 +311,7 @@ const App: React.FC = () => {
                     >
                       <option value="mcts">MCTS</option>
                       <option value="alphabeta">Alpha-Beta</option>
+                      <option value="minimax">Minimax</option>
                       <option value="heuristic">heuristic</option>
                       <option value="alphazero">AlphaZero</option>
                     </select>

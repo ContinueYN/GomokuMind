@@ -9,6 +9,13 @@ Minimax 剪枝搜索策略，用于 15×15 五子棋（自由落子规则）。
   - 静态搜索：深度耗尽时延申一层捕获威胁，避免地平线效应
 """
 
+import os as _os
+import sys as _sys
+_here = _os.path.dirname(_os.path.abspath(__file__))
+_alphazero_dir = _os.path.join(_os.path.dirname(_here), 'alphazero')
+if _alphazero_dir not in _sys.path:
+    _sys.path.insert(0, _alphazero_dir)
+
 import time
 import numpy as np
 from gomoku import GomokuEnv, check_winner_from
@@ -328,3 +335,79 @@ class MinimaxPlayer:
 
         _, action = _negamax(board, self._depth, -float('inf'), float('inf'), player)
         return int(action) if action is not None else 0
+
+
+# ============================================================
+#  JSON Lines 推理服务 — 由 Go 端通过 stdin/stdout 管道调用
+# ============================================================
+#
+# 启动方式 (由 Go 端管理进程):
+#     python minimax.py --serve
+#
+# 协议 (JSON Lines, 每行一个请求):
+#     输入:  {"board": [[0,1,2,...], ...], "player": 1}
+#     输出:  {"row": N, "col": M, "status": "ok"}
+#
+#     board: 15×15, 0=空 1=黑 2=白
+#     player: 1=黑棋回合, 2=白棋回合
+#
+# ============================================================
+
+import sys
+import json
+import logging as _logging
+
+_SERVE_LOG = _logging.getLogger("minimax.infer")
+_SERVE_LOG.setLevel(_logging.WARNING)
+
+# 推理服务使用的搜索深度与时限
+_SERVE_DEPTH = 4
+_SERVE_TIME_LIMIT = 2.0  # 秒
+
+
+def _serve(engine: MinimaxPlayer):
+    """持久推理服务主循环 — stdin JSON Lines 输入, stdout JSON Lines 输出。
+
+    错误处理: 所有异常都转为 JSON 错误响应输出, 不导致进程崩溃。
+    Go 端通过检查响应中是否有 "error" 字段判断成功与否。
+    """
+    # 发送就绪信号 — Go 端阻塞等待此信号 (60s 超时)
+    print(json.dumps({"status": "ready"}), flush=True)
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        if line.lower() in ("quit", "exit"):
+            break
+
+        try:
+            req = json.loads(line)
+        except json.JSONDecodeError as e:
+            print(json.dumps({"error": f"Invalid JSON: {e}"}), flush=True)
+            continue
+
+        board_data = req.get("board")
+        player = req.get("player", 1)
+
+        if board_data is None:
+            print(json.dumps({"error": "Missing 'board' field"}), flush=True)
+            continue
+
+        try:
+            # 将 2D 列表转为 numpy 棋盘 (int8)
+            board = np.array(board_data, dtype=np.int8)
+            action = engine._search(board, player)
+            row, col = int(_ROW[action]), int(_COL[action])
+            print(json.dumps({"row": row, "col": col, "status": "ok"}), flush=True)
+        except Exception as e:
+            _SERVE_LOG.exception("Prediction failed")
+            print(json.dumps({"error": str(e)}), flush=True)
+
+    _SERVE_LOG.info("Inference server shutting down.")
+
+
+if __name__ == "__main__" and "--serve" in sys.argv:
+    # 推理模式: 加载 MinimaxPlayer 并进入 JSON Lines 事件循环
+    _engine = MinimaxPlayer(depth=_SERVE_DEPTH, time_limit=_SERVE_TIME_LIMIT)
+    _serve(_engine)

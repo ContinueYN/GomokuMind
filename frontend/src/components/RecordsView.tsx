@@ -14,6 +14,7 @@ const AI_LABELS: Record<string, string> = {
   mcts: 'MCTS',
   alphabeta: 'Alpha-Beta',
   alphazero: 'AlphaZero',
+  minimax: 'Minimax',
 };
 
 function aiLabel(type: string): string {

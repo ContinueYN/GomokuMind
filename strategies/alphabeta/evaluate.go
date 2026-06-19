@@ -65,9 +65,9 @@ func (e *boardEval) evaluate(b *boardIntl, turn int) int {
 }
 
 // evalRaw 执行完整的全盘评估流程：
-//   1. 四方向全盘棋型分析（缓存到 record）
-//   2. 统计各棋型数量
-//   3. 优先级链评分 + 位置权重
+//  1. 四方向全盘棋型分析（缓存到 record）
+//  2. 统计各棋型数量
+//  3. 优先级链评分 + 位置权重
 func (e *boardEval) evalRaw(b *boardIntl, turn int) int {
 	e.reset()
 
@@ -480,12 +480,13 @@ func (e *boardEval) analysisLine(num, pos int) {
 		left2 := false
 		if xl > 2 && e.line[xl-1] == 0 {
 			if e.line[xl-2] == stone {
-				if e.line[xl-3] == stone {
+				switch e.line[xl-3] {
+				case stone:
 					// XX_X 模式 → 冲四
 					e.result[xl-3] = analysed
 					e.result[xl-2] = analysed
 					e.result[xl] = sfour
-				} else if e.line[xl-3] == 0 {
+				case 0:
 					// _X_X 模式 → 冲三
 					e.result[xl-2] = analysed
 					e.result[xl] = sthree
@@ -497,12 +498,13 @@ func (e *boardEval) analysisLine(num, pos int) {
 
 		if xr < num && e.line[xr+1] == 0 {
 			if xr < num-2 && e.line[xr+2] == stone {
-				if e.line[xr+3] == stone {
+				switch e.line[xr+3] {
+				case stone:
 					// X_XX 模式 → 冲四
 					e.result[xr+3] = analysed
 					e.result[xr+2] = analysed
 					e.result[xr] = sfour
-				} else if e.line[xr+3] == 0 {
+				case 0:
 					// X_X_ 模式
 					e.result[xr+2] = analysed
 					if left2 {

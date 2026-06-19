@@ -63,13 +63,13 @@ type readyResponse struct {
 //
 // 错误处理: 每个步骤失败都会关闭已分配资源，防止泄漏。
 func NewAlphaZeroStrategy(modelPath string) (*AlphaZeroStrategy, error) {
-	// 从可执行文件位置推导项目根目录（server.exe 位于项目根目录）
-	execPath, err := os.Executable()
-	if err != nil {
-		return nil, fmt.Errorf("获取可执行文件路径失败: %w", err)
+	// 定位 infer.py: 优先使用工作目录(支持 go run), 其次用可执行文件路径(支持生产构建)
+	pyScript := filepath.Join("strategies", "alphazero", "infer.py")
+	if _, err := os.Stat(pyScript); os.IsNotExist(err) {
+		if execPath, err2 := os.Executable(); err2 == nil {
+			pyScript = filepath.Join(filepath.Dir(execPath), "strategies", "alphazero", "infer.py")
+		}
 	}
-	projectRoot := filepath.Dir(execPath)
-	pyScript := filepath.Join(projectRoot, "strategies", "alphazero", "infer.py")
 
 	absModelPath, err := filepath.Abs(modelPath)
 	if err != nil {

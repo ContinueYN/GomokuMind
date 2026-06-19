@@ -16,6 +16,7 @@ import (
 	"gomokumind/strategies/alphazero"
 	"gomokumind/strategies/heuristic"
 	"gomokumind/strategies/mcts"
+	"gomokumind/strategies/minimax"
 )
 
 // ============================================================
@@ -41,6 +42,7 @@ const (
 	AIMCTS      AIType = "mcts"      // 蒙特卡洛树搜索（Go 原生）
 	AIAlphaBeta AIType = "alphabeta" // Alpha-Beta 增强搜索（Go 原生）
 	AIAlphaZero AIType = "alphazero" // AlphaZero 深度学习（Go + Python）
+	AIMinimax   AIType = "minimax"   // Minimax 剪枝搜索（Go + Python）
 )
 
 // Move 一步落子（行列坐标），JSON 序列化字段名与前端对齐
@@ -138,6 +140,9 @@ func nextID() string {
 // azStrategy AlphaZero 策略单例，服务器启动时初始化一次
 var azStrategy *alphazero.AlphaZeroStrategy
 
+// minimaxStrategy Minimax 策略单例，服务器启动时初始化一次
+var minimaxStrategy *minimax.MinimaxStrategy
+
 // getStrategy 根据 aiType 返回对应的策略实现
 func getStrategy(aiType string) game_engine.Strategy {
 	switch AIType(aiType) {
@@ -150,6 +155,11 @@ func getStrategy(aiType string) game_engine.Strategy {
 			return azStrategy
 		}
 		// 调用失败的话，降级成启发式策略
+		return heuristic.NewHeuristicStrategy()
+	case AIMinimax:
+		if minimaxStrategy != nil {
+			return minimaxStrategy
+		}
 		return heuristic.NewHeuristicStrategy()
 	default:
 		return heuristic.NewHeuristicStrategy()
@@ -587,6 +597,16 @@ func main() {
 	} else {
 		defer azStrategy.Close()
 		log.Println("AlphaZero 策略初始化成功")
+	}
+
+	// 初始化 Minimax 策略（持久 Python 推理进程）
+	minimaxStrategy, err = minimax.NewMinimaxStrategy()
+	if err != nil {
+		log.Printf("警告: Minimax 策略初始化失败: %v", err)
+		log.Println("Minimax 不可用，已降级为启发式策略")
+	} else {
+		defer minimaxStrategy.Close()
+		log.Println("Minimax 策略初始化成功")
 	}
 
 	// 初始化对局记录存储（JSON 文件持久化）

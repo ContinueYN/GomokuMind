@@ -1,11 +1,20 @@
-"""五子棋基础规则函数，供 alphazero infer.py 和 alphazero_train.py 使用。
+"""五子棋基础规则函数，供 alphazero / minimax 策略使用。
 
-本模块独立于训练/推理逻辑，仅提供纯规则判定。
+本模块独立于训练/推理逻辑，仅提供纯规则判定和棋盘常量。
 """
 
 from __future__ import annotations
 
 import numpy as np
+
+
+class GomokuEnv:
+    """五子棋环境常量 — 与 game-engine 保持一致的 15×15 自由落子规则。"""
+    ROWS = 15
+    COLS = 15
+    CONNECT = 5
+    PLAYER_1 = 1  # 黑棋（先手）
+    # PLAYER_2 = 2  # 白棋（后手），minimax 用 3-player 公式推导
 
 
 def check_winner_from(board: np.ndarray, player: int, r: int, c: int,

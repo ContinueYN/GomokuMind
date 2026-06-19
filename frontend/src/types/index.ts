@@ -7,7 +7,7 @@ export type Piece = 0 | 1 | 2;
 
 export type GameStatus = 'playing' | 'black_win' | 'white_win' | 'draw';
 
-export type AIType = 'heuristic' | 'mcts' | 'alphabeta' | 'alphazero';
+export type AIType = 'heuristic' | 'mcts' | 'alphabeta' | 'alphazero' | 'minimax';
 
 // 游戏模式
 export type GameMode = 'pvp' | 'pve_black' | 'pve_white' | 'ai_vs_ai';
